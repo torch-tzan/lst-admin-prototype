@@ -84,6 +84,7 @@ export function cleanupOldMockKeys() {
     "lst-mock-commission-v1",
     "lst-mock-earnings-v1",
     "lst-mock-campaigns-v1",
+    "lst-mock-courts-v1",
   ];
   legacy.forEach((k) => {
     try {
@@ -94,7 +95,8 @@ export function cleanupOldMockKeys() {
 
 export const MOCK_KEYS = {
   venues: "lst-mock-venues-v1",
-  courts: "lst-mock-courts-v1",
+  // v2: floor / courtCount フィールド追加
+  courts: "lst-mock-courts-v2",
   equipment: "lst-mock-equipment-v1",
   bookings: "lst-mock-bookings-v1",
   reviews: "lst-mock-reviews-v1",

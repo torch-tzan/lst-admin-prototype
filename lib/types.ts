@@ -57,8 +57,12 @@ export interface Court {
   image?: string;
   /** コート紹介文 */
   description?: string;
-  /** 収容人数（1 コートあたりの最大プレイヤー数）*/
+  /** 収容人数（1 面あたりの最大プレイヤー数）*/
   capacity?: number;
+  /** 所在階（例：11F、B1F、屋上）*/
+  floor?: string;
+  /** 同エリア内のコート面数（例：11F に 4 面ある場合は 4）*/
+  courtCount?: number;
   /** 平均評価（レビューから導出、表示用）*/
   rating?: number;
   /** レビュー数 */

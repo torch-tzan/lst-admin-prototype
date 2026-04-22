@@ -47,6 +47,8 @@ const courtSchema = z.object({
   image: z.string().url("URL 形式が不正").or(z.literal("")).optional(),
   description: z.string().max(500, "500 文字以内").optional(),
   capacity: z.number().min(2).max(8).optional(),
+  floor: z.string().max(20).optional(),
+  courtCount: z.number().min(1).max(20).optional(),
   amenities: z.array(z.string()),
 });
 type CourtForm = z.infer<typeof courtSchema>;
@@ -108,6 +110,8 @@ export default function CourtsPage() {
     image: "",
     description: "",
     capacity: 4,
+    floor: "",
+    courtCount: 1,
     amenities: [],
   };
 
@@ -132,6 +136,8 @@ export default function CourtsPage() {
       image: c.image ?? "",
       description: c.description ?? "",
       capacity: c.capacity ?? 4,
+      floor: c.floor ?? "",
+      courtCount: c.courtCount ?? 1,
       amenities: c.amenities ?? [],
     });
     setCourtDialog(true);
@@ -144,6 +150,7 @@ export default function CourtsPage() {
         ...data,
         image: data.image || undefined,
         description: data.description || undefined,
+        floor: data.floor || undefined,
       });
       toast.success(`コートを更新しました：${data.name}`);
     } else {
@@ -153,6 +160,7 @@ export default function CourtsPage() {
         ...data,
         image: data.image || undefined,
         description: data.description || undefined,
+        floor: data.floor || undefined,
       };
       add(newCourt);
       toast.success(`コートを追加しました：${data.name}`);
@@ -295,6 +303,13 @@ export default function CourtsPage() {
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {c.type} · {formatYen(c.hourlyPrice)}/h
                     </div>
+                    {(c.floor || c.courtCount) && (
+                      <div className="text-[10px] text-muted-foreground mt-0.5">
+                        {c.floor && <span>{c.floor}</span>}
+                        {c.floor && c.courtCount ? " · " : ""}
+                        {c.courtCount && <span>{c.courtCount} 面</span>}
+                      </div>
+                    )}
                     {c.rating != null && c.rating > 0 && (
                       <div className="flex items-center gap-1 text-xs text-muted-foreground mt-0.5">
                         <Star className="w-3 h-3 fill-[hsl(38_92%_50%)] text-[hsl(38_92%_50%)]" />
@@ -376,8 +391,14 @@ export default function CourtsPage() {
                     </p>
                   )}
                   <div className="flex items-center gap-3 text-xs text-muted-foreground mb-2">
+                    {activeCourt.floor && (
+                      <span className="font-medium">{activeCourt.floor}</span>
+                    )}
+                    {activeCourt.courtCount && (
+                      <span>{activeCourt.courtCount} 面</span>
+                    )}
                     {activeCourt.capacity && (
-                      <span>定員 {activeCourt.capacity} 名</span>
+                      <span>定員 {activeCourt.capacity} 名/面</span>
                     )}
                     {activeCourt.rating != null && activeCourt.rating > 0 && (
                       <span className="flex items-center gap-1">
@@ -545,13 +566,39 @@ export default function CourtsPage() {
                 )}
               </div>
               <div className="grid gap-1.5">
-                <Label>収容人数</Label>
+                <Label>収容人数（1 面あたり）</Label>
                 <Input
                   type="number"
                   min={2}
                   max={8}
                   {...form.register("capacity", { valueAsNumber: true })}
                 />
+              </div>
+            </div>
+
+            {/* 階・面数 */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="grid gap-1.5">
+                <Label>所在階</Label>
+                <Input
+                  {...form.register("floor")}
+                  placeholder="例：11F、B1F、屋上"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  同じビル内の複数フロアでコートが分かれる場合に明記
+                </p>
+              </div>
+              <div className="grid gap-1.5">
+                <Label>コート面数</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  max={20}
+                  {...form.register("courtCount", { valueAsNumber: true })}
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  このエリア内にある物理的なコートの面数（例：4 面）
+                </p>
               </div>
             </div>
 
