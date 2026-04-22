@@ -61,7 +61,6 @@ const schema = z.object({
   activeWithinDays: z.number().optional(),
   minTotalSpend: z.number().optional(),
   newWithinDays: z.number().optional(),
-  includeTags: z.array(z.string()).optional(),
   // whitelist 用
   whitelistUserIds: z.array(z.string()).optional(),
 });
@@ -88,7 +87,6 @@ export default function CouponsPage() {
       activeWithinDays: 60,
       minTotalSpend: 0,
       newWithinDays: 0,
-      includeTags: [],
       whitelistUserIds: [],
     },
   });
@@ -130,9 +128,6 @@ export default function CouponsPage() {
           (Date.now() - new Date(u.registeredAt).getTime()) / 86400000;
         if (days > filter.newWithinDays) return false;
       }
-      if (filter.includeTags && filter.includeTags.length > 0) {
-        if (!filter.includeTags.some((t) => u.tags.includes(t))) return false;
-      }
       return true;
     }).map((u) => u.id);
   };
@@ -146,8 +141,6 @@ export default function CouponsPage() {
       activeWithinDays: v.activeWithinDays || undefined,
       minTotalSpend: v.minTotalSpend || undefined,
       newWithinDays: v.newWithinDays || undefined,
-      includeTags:
-        v.includeTags && v.includeTags.length > 0 ? v.includeTags : undefined,
     };
     return calcRecipientsFromFilter(filter).length;
   }, [form.watch()]);
@@ -160,10 +153,6 @@ export default function CouponsPage() {
             activeWithinDays: data.activeWithinDays || undefined,
             minTotalSpend: data.minTotalSpend || undefined,
             newWithinDays: data.newWithinDays || undefined,
-            includeTags:
-              data.includeTags && data.includeTags.length > 0
-                ? data.includeTags
-                : undefined,
           }
         : undefined;
 
@@ -617,41 +606,6 @@ export default function CouponsPage() {
                       })}
                     />
                   </div>
-                  <div className="grid gap-1.5">
-                    <Label>タグ指定（OR 条件）</Label>
-                    <div className="flex flex-wrap gap-1">
-                      {["VIP", "常連", "新規", "女性向け", "大会参加"].map(
-                        (tag) => {
-                          const selected = (
-                            form.watch("includeTags") ?? []
-                          ).includes(tag);
-                          return (
-                            <button
-                              key={tag}
-                              type="button"
-                              onClick={() => {
-                                const cur = form.watch("includeTags") ?? [];
-                                form.setValue(
-                                  "includeTags",
-                                  selected
-                                    ? cur.filter((x) => x !== tag)
-                                    : [...cur, tag]
-                                );
-                              }}
-                              className={cn(
-                                "px-2 py-1 rounded border text-xs",
-                                selected
-                                  ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-background border-input"
-                              )}
-                            >
-                              {tag}
-                            </button>
-                          );
-                        }
-                      )}
-                    </div>
-                  </div>
                 </div>
               ) : (
                 <div className="grid gap-2">
@@ -689,12 +643,8 @@ export default function CouponsPage() {
                             <span className="text-xs text-muted-foreground">
                               {u.email}
                             </span>
-                            <div className="ml-auto flex gap-1">
-                              {u.tags.slice(0, 2).map((t) => (
-                                <Badge key={t} variant="secondary">
-                                  {t}
-                                </Badge>
-                              ))}
+                            <div className="ml-auto text-xs text-muted-foreground">
+                              累計 {u.totalBookings}件 / {formatYen(u.totalSpend)}
                             </div>
                           </label>
                         );
@@ -800,13 +750,6 @@ export default function CouponsPage() {
                           · 登録{recipientsPreview.filter.newWithinDays}日以内
                         </div>
                       )}
-                      {recipientsPreview.filter?.includeTags &&
-                        recipientsPreview.filter.includeTags.length > 0 && (
-                          <div>
-                            · タグ：
-                            {recipientsPreview.filter.includeTags.join(" / ")}
-                          </div>
-                        )}
                       {(!recipientsPreview.filter ||
                         Object.keys(recipientsPreview.filter).length === 0) && (
                         <div>· 全会員</div>

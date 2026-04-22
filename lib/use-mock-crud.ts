@@ -79,6 +79,7 @@ export function cleanupOldMockKeys() {
   const legacy = [
     "lst-mock-admin-accounts-v1",
     "lst-mock-admin-roles-v1",
+    "lst-mock-members-v1",
   ];
   legacy.forEach((k) => {
     try {
@@ -96,7 +97,8 @@ export const MOCK_KEYS = {
   reviews: "lst-mock-reviews-v1",
   matches: "lst-mock-matches-v1",
   announcements: "lst-mock-announcements-v1",
-  members: "lst-mock-members-v1",
+  // v2: tags フィールドを削除したため bump
+  members: "lst-mock-members-v2",
   pointsLogs: "lst-mock-points-logs-v1",
   pointsRules: "lst-mock-points-rules-v1",
   coupons: "lst-mock-coupons-v1",

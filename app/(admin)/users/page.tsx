@@ -85,7 +85,6 @@ export default function UsersPage() {
   );
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | UserStatus>("all");
-  const [tagFilter, setTagFilter] = useState<string>("all");
   const [selected, setSelected] = useState<MemberUser | null>(null);
   const [adjustOpen, setAdjustOpen] = useState(false);
   const [suspendOpen, setSuspendOpen] = useState(false);
@@ -100,17 +99,10 @@ export default function UsersPage() {
     defaultValues: { reason: "" },
   });
 
-  const allTags = useMemo(() => {
-    const s = new Set<string>();
-    items.forEach((u) => u.tags.forEach((t) => s.add(t)));
-    return Array.from(s);
-  }, [items]);
-
   const filtered = useMemo(() => {
     return items
       .filter((u) => {
         if (statusFilter !== "all" && u.status !== statusFilter) return false;
-        if (tagFilter !== "all" && !u.tags.includes(tagFilter)) return false;
         if (
           q &&
           !`${u.name}${u.email}${u.phone}`.toLowerCase().includes(q.toLowerCase())
@@ -119,7 +111,7 @@ export default function UsersPage() {
         return true;
       })
       .sort((a, b) => b.totalSpend - a.totalSpend);
-  }, [items, q, statusFilter, tagFilter]);
+  }, [items, q, statusFilter]);
 
   const kpi = useMemo(() => {
     const active = items.filter((u) => u.status === "active").length;
@@ -127,8 +119,8 @@ export default function UsersPage() {
       items.length > 0
         ? Math.round(items.reduce((s, u) => s + u.totalSpend, 0) / items.length)
         : 0;
-    const vipCount = items.filter((u) => u.tags.includes("VIP")).length;
-    return { active, total: items.length, avgSpend, vipCount };
+    const highValue = items.filter((u) => u.totalSpend >= 100000).length;
+    return { active, total: items.length, avgSpend, highValue };
   }, [items]);
 
   const userBookings = useMemo(() => {
@@ -213,10 +205,10 @@ export default function UsersPage() {
           </div>
         </div>
         <div className="bg-card border rounded-lg px-4 py-3">
-          <div className="text-xs text-muted-foreground">VIP 会員</div>
-          <div className="text-2xl font-semibold mt-0.5">{kpi.vipCount}</div>
+          <div className="text-xs text-muted-foreground">高利用会員</div>
+          <div className="text-2xl font-semibold mt-0.5">{kpi.highValue}</div>
           <div className="text-xs text-muted-foreground mt-0.5">
-            累計 ¥50,000+ タグ付き
+            累計利用額 ¥100,000 以上
           </div>
         </div>
         <div className="bg-card border rounded-lg px-4 py-3">
@@ -261,19 +253,6 @@ export default function UsersPage() {
                 <SelectItem value="pending_verification">認証待ち</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={tagFilter} onValueChange={setTagFilter}>
-              <SelectTrigger className="w-32 h-8 text-xs">
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">全タグ</SelectItem>
-                {allTags.map((t) => (
-                  <SelectItem key={t} value={t}>
-                    {t}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
         }
       >
@@ -284,7 +263,6 @@ export default function UsersPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>会員</TableHead>
-                <TableHead>タグ</TableHead>
                 <TableHead>ポイント / XP</TableHead>
                 <TableHead>累計</TableHead>
                 <TableHead>最終ログイン</TableHead>
@@ -299,27 +277,6 @@ export default function UsersPage() {
                     <div>{u.name}</div>
                     <div className="text-xs text-muted-foreground">
                       {u.email}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex flex-wrap gap-1">
-                      {u.tags.length === 0 && (
-                        <span className="text-xs text-muted-foreground">—</span>
-                      )}
-                      {u.tags.map((t) => (
-                        <Badge
-                          key={t}
-                          variant={
-                            t === "VIP"
-                              ? "default"
-                              : t === "要注意"
-                              ? "destructive"
-                              : "secondary"
-                          }
-                        >
-                          {t}
-                        </Badge>
-                      ))}
                     </div>
                   </TableCell>
                   <TableCell>
@@ -437,34 +394,6 @@ export default function UsersPage() {
                         <div className="text-xs text-muted-foreground">
                           累計予約
                         </div>
-                      </div>
-                    </div>
-
-                    <div>
-                      <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                        タグ
-                      </div>
-                      <div className="flex flex-wrap gap-1.5">
-                        {selected.tags.length === 0 ? (
-                          <span className="text-sm text-muted-foreground">
-                            なし
-                          </span>
-                        ) : (
-                          selected.tags.map((t) => (
-                            <Badge
-                              key={t}
-                              variant={
-                                t === "VIP"
-                                  ? "default"
-                                  : t === "要注意"
-                                  ? "destructive"
-                                  : "secondary"
-                              }
-                            >
-                              {t}
-                            </Badge>
-                          ))
-                        )}
                       </div>
                     </div>
 

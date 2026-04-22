@@ -370,8 +370,7 @@ export interface MemberUser {
   totalBookings: number;
   /** 累計利用額 */
   totalSpend: number;
-  /** 優遇タグ */
-  tags: string[];
+  /** 管理者メモ（停止理由など） */
   notes?: string;
 }
 
@@ -422,8 +421,6 @@ export interface CouponFilter {
   activeWithinDays?: number;
   /** 累計利用額の下限 */
   minTotalSpend?: number;
-  /** タグ（OR 条件） */
-  includeTags?: string[];
   /** 新規会員（登録から何日以内） */
   newWithinDays?: number;
 }

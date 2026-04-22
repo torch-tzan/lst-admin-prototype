@@ -2,10 +2,10 @@
 
 import { useMemo, useState } from "react";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm, Controller } from "react-hook-form";
+import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, ShieldCheck, Lock, Info, Copy, Trash2 } from "lucide-react";
+import { Plus, ShieldCheck, Info, Copy, Trash2, Users } from "lucide-react";
 
 import { PageShell, Section } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
@@ -64,7 +64,10 @@ const schema = z.object({
   label: z.string().min(2, "ロール名は 2 文字以上"),
   description: z.string().min(10, "説明は 10 文字以上"),
   scope: z.enum(["lst", "venue"]),
-  modulePerms: z.record(z.string(), z.array(z.enum(["read", "create", "update", "delete"]))),
+  modulePerms: z.record(
+    z.string(),
+    z.array(z.enum(["read", "create", "update", "delete"]))
+  ),
   specialPerms: z.array(z.string()),
 });
 
@@ -167,6 +170,10 @@ export default function RolesPage() {
   };
 
   const handleDelete = (r: AdminRole) => {
+    if (r.builtin) {
+      toast.error("標準ロールは削除できません（複製して編集してください）");
+      return;
+    }
     const count = accountCountByRole[r.key] ?? 0;
     if (count > 0) {
       toast.error(
@@ -180,7 +187,7 @@ export default function RolesPage() {
     }
   };
 
-  // Matrix toggle helpers
+  // Matrix helpers
   const toggleModuleCrud = (mod: ModuleKey, action: CrudAction) => {
     const cur = formModulePerms[mod] ?? [];
     const next = cur.includes(action)
@@ -220,15 +227,15 @@ export default function RolesPage() {
     );
   };
 
-  // Group special actions by module for display
   const specialsByModule = useMemo(() => {
     const map: Partial<Record<ModuleKey, SpecialAction[]>> = {};
-    (Object.entries(SPECIAL_ACTION_LABELS) as [SpecialAction, { module: ModuleKey }][]).forEach(
-      ([key, meta]) => {
-        if (!map[meta.module]) map[meta.module] = [];
-        map[meta.module]!.push(key);
-      }
-    );
+    (Object.entries(SPECIAL_ACTION_LABELS) as [
+      SpecialAction,
+      { module: ModuleKey }
+    ][]).forEach(([key, meta]) => {
+      if (!map[meta.module]) map[meta.module] = [];
+      map[meta.module]!.push(key);
+    });
     return map;
   }, []);
 
@@ -237,7 +244,7 @@ export default function RolesPage() {
   return (
     <PageShell
       title="権限・ロール"
-      description="カスタムロールの作成と、モジュール × CRUD マトリクスによる権限調整。"
+      description="管理者ロールを作成・編集します。各ロールのカードをクリックして権限マトリクスを調整してください。"
       breadcrumbs={[{ label: "システム" }, { label: "権限・ロール" }]}
       actions={
         <Button onClick={openNew}>
@@ -249,9 +256,9 @@ export default function RolesPage() {
       <div className="mb-4 rounded-md border border-primary/30 bg-primary/5 px-4 py-3 text-xs flex items-start gap-2">
         <Info className="w-4 h-4 text-primary mt-0.5 shrink-0" />
         <div className="text-muted-foreground leading-relaxed">
-          標準ロール 7 種（削除不可、複製は可能）と、カスタムロール（無制限作成可）を管理できます。
-          各モジュールに対する <strong>CRUD 権限</strong>（閲覧／作成／編集／削除）と、
-          <strong>機微操作</strong>（コーチ審査・返金・配布実行など）を細かく設定できます。
+          標準ロールも含めて全ロールの<strong>権限は編集可能</strong>です。
+          ただし標準ロールの削除はできません（代替ロールが必要な場合は複製してください）。
+          ロールが割当中の場合も削除不可。
         </div>
       </div>
 
@@ -272,131 +279,60 @@ export default function RolesPage() {
         </TabsList>
 
         <TabsContent value={scope}>
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
             {scopedRoles.map((role) => {
-              // 旧形式の localStorage cache 対策（念のため fallback）
-              const modulePerms = role.modulePerms ?? {};
-              const specialPerms = role.specialPerms ?? [];
-              const moduleCount = Object.values(modulePerms).filter(
-                (v) => v && v.length > 0
-              ).length;
-              const totalCruds = Object.values(modulePerms).reduce(
-                (s, v) => s + (v?.length ?? 0),
-                0
-              );
               const usedCount = accountCountByRole[role.key] ?? 0;
               return (
-                <Card key={role.id} className="overflow-hidden">
-                  <CardContent className="p-0">
-                    {/* Header */}
-                    <div className="p-5 border-b bg-muted/30">
-                      <div className="flex items-start justify-between gap-3 mb-2">
-                        <div className="flex items-center gap-2">
-                          <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center">
-                            <ShieldCheck className="w-4 h-4" />
-                          </div>
-                          <div>
-                            <div className="font-semibold">{role.label}</div>
-                            <div className="text-xs text-muted-foreground">
-                              <code className="font-mono">{role.key}</code>
-                            </div>
-                          </div>
+                <Card
+                  key={role.id}
+                  className="hover:shadow-md hover:border-primary/40 transition-all cursor-pointer"
+                  onClick={() => openEdit(role)}
+                >
+                  <CardContent className="p-5">
+                    <div className="flex items-start justify-between gap-2 mb-2">
+                      <div className="flex items-center gap-2 min-w-0">
+                        <div className="w-8 h-8 rounded-md bg-primary/10 text-primary flex items-center justify-center shrink-0">
+                          <ShieldCheck className="w-4 h-4" />
                         </div>
-                        <div className="flex items-center gap-2">
-                          {role.builtin ? (
-                            <Badge variant="secondary" className="gap-1">
-                              <Lock className="w-3 h-3" />
-                              標準
-                            </Badge>
-                          ) : (
-                            <Badge variant="default">カスタム</Badge>
-                          )}
-                          <Badge variant="muted">{usedCount} 名</Badge>
-                        </div>
+                        <div className="font-semibold truncate">{role.label}</div>
                       </div>
-                      <p className="text-xs text-muted-foreground leading-relaxed">
-                        {role.description}
-                      </p>
+                      {role.builtin && (
+                        <Badge variant="secondary" className="shrink-0">
+                          標準
+                        </Badge>
+                      )}
                     </div>
-
-                    {/* Summary */}
-                    <div className="p-5">
-                      <div className="grid grid-cols-3 gap-2 mb-4">
-                        <div className="bg-muted/40 rounded-md p-2 text-center">
-                          <div className="text-lg font-semibold">
-                            {moduleCount}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            利用モジュール
-                          </div>
-                        </div>
-                        <div className="bg-muted/40 rounded-md p-2 text-center">
-                          <div className="text-lg font-semibold">{totalCruds}</div>
-                          <div className="text-[10px] text-muted-foreground">
-                            CRUD 権限
-                          </div>
-                        </div>
-                        <div className="bg-muted/40 rounded-md p-2 text-center">
-                          <div className="text-lg font-semibold">
-                            {specialPerms.length}
-                          </div>
-                          <div className="text-[10px] text-muted-foreground">
-                            機微操作
-                          </div>
-                        </div>
-                      </div>
-
-                      <div className="space-y-1.5">
-                        {Object.entries(modulePerms)
-                          .filter(([, v]) => v && v.length > 0)
-                          .map(([mod, actions]) => (
-                            <div key={mod} className="flex items-center gap-2">
-                              <div className="text-xs w-24 shrink-0 text-muted-foreground">
-                                {MODULE_LABELS[mod as ModuleKey]}
-                              </div>
-                              <div className="flex gap-1">
-                                {(actions ?? []).map((a) => (
-                                  <span
-                                    key={a}
-                                    className="text-[10px] px-1.5 py-0.5 bg-primary/10 text-primary rounded"
-                                  >
-                                    {CRUD_LABELS[a]}
-                                  </span>
-                                ))}
-                              </div>
-                            </div>
-                          ))}
-                      </div>
-                    </div>
-
-                    <div className="px-5 py-3 border-t flex items-center justify-between">
-                      <div className="text-[10px] text-muted-foreground">
-                        作成：{role.createdAt.slice(0, 10)}
+                    <p className="text-xs text-muted-foreground leading-relaxed line-clamp-3 mb-3">
+                      {role.description}
+                    </p>
+                    <div className="flex items-center justify-between text-xs pt-3 border-t">
+                      <div className="flex items-center gap-1.5 text-muted-foreground">
+                        <Users className="w-3.5 h-3.5" />
+                        <span>{usedCount} 名</span>
                       </div>
                       <div className="flex gap-1">
                         <Button
                           variant="ghost"
                           size="sm"
-                          onClick={() => openDuplicate(role)}
+                          className="h-7 px-2"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            openDuplicate(role);
+                          }}
                         >
-                          <Copy className="w-3.5 h-3.5" />
-                          複製
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openEdit(role)}
-                        >
-                          {role.builtin ? "詳細" : "編集"}
+                          <Copy className="w-3 h-3" />
                         </Button>
                         {!role.builtin && (
                           <Button
                             variant="ghost"
                             size="sm"
-                            className="text-destructive"
-                            onClick={() => handleDelete(role)}
+                            className="h-7 px-2 text-destructive"
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleDelete(role);
+                            }}
                           >
-                            <Trash2 className="w-3.5 h-3.5" />
+                            <Trash2 className="w-3 h-3" />
                           </Button>
                         )}
                       </div>
@@ -415,11 +351,12 @@ export default function RolesPage() {
           <DialogHeader>
             <DialogTitle>
               {editing ? `ロール編集：${editing.label}` : "新規ロール作成"}
+              {editing?.builtin && (
+                <Badge variant="secondary" className="ml-2">標準</Badge>
+              )}
             </DialogTitle>
             <DialogDescription>
               モジュール × CRUD マトリクスと機微操作を設定します。
-              {editing?.builtin &&
-                " 標準ロールは閲覧のみ可能（編集は複製後）。"}
             </DialogDescription>
           </DialogHeader>
           <form
@@ -432,7 +369,6 @@ export default function RolesPage() {
                 <Input
                   {...form.register("label")}
                   placeholder="例：財務閲覧専用"
-                  disabled={editing?.builtin}
                 />
                 {form.formState.errors.label && (
                   <p className="text-xs text-destructive">
@@ -464,7 +400,6 @@ export default function RolesPage() {
                 rows={2}
                 {...form.register("description")}
                 placeholder="このロールの目的・権限の要約"
-                disabled={editing?.builtin}
               />
               {form.formState.errors.description && (
                 <p className="text-xs text-destructive">
@@ -478,7 +413,7 @@ export default function RolesPage() {
               <div className="flex items-center justify-between mb-2">
                 <Label className="text-sm">モジュール × CRUD マトリクス</Label>
                 <div className="text-xs text-muted-foreground">
-                  セルをクリックで ON/OFF · 行／列ヘッダで一括切替
+                  セルをクリックで ON/OFF · 列ヘッダ／行末で一括切替
                 </div>
               </div>
               <div className="border rounded-md overflow-hidden">
@@ -497,7 +432,6 @@ export default function RolesPage() {
                             type="button"
                             onClick={() => toggleCrudColumn(c)}
                             className="hover:text-primary cursor-pointer"
-                            disabled={editing?.builtin}
                           >
                             {CRUD_LABELS[c]}
                           </button>
@@ -526,14 +460,12 @@ export default function RolesPage() {
                               >
                                 <button
                                   type="button"
-                                  disabled={editing?.builtin}
                                   onClick={() => toggleModuleCrud(mod, action)}
                                   className={cn(
                                     "w-6 h-6 rounded border-2 transition-colors",
                                     checked
                                       ? "bg-primary border-primary text-primary-foreground"
-                                      : "border-input hover:border-primary/60",
-                                    editing?.builtin && "cursor-not-allowed opacity-60"
+                                      : "border-input hover:border-primary/60"
                                   )}
                                   aria-label={`${MODULE_LABELS[mod]} ${CRUD_LABELS[action]}`}
                                 >
@@ -557,7 +489,6 @@ export default function RolesPage() {
                             <button
                               type="button"
                               onClick={() => toggleModuleAll(mod)}
-                              disabled={editing?.builtin}
                               className={cn(
                                 "text-[10px] px-2 py-0.5 rounded border transition-colors",
                                 allSelected
@@ -597,13 +528,11 @@ export default function RolesPage() {
                               key={s}
                               type="button"
                               onClick={() => toggleSpecial(s)}
-                              disabled={editing?.builtin}
                               className={cn(
                                 "text-xs px-2 py-1 rounded border transition-colors",
                                 checked
                                   ? "bg-primary text-primary-foreground border-primary"
-                                  : "bg-background border-input hover:border-primary/60",
-                                editing?.builtin && "cursor-not-allowed opacity-60"
+                                  : "bg-background border-input hover:border-primary/60"
                               )}
                             >
                               {SPECIAL_ACTION_LABELS[s].label}
@@ -623,13 +552,11 @@ export default function RolesPage() {
                 variant="outline"
                 onClick={() => setDialogOpen(false)}
               >
-                {editing?.builtin ? "閉じる" : "キャンセル"}
+                キャンセル
               </Button>
-              {!editing?.builtin && (
-                <Button type="submit" loading={form.formState.isSubmitting}>
-                  {editing ? "変更を保存" : "ロール作成"}
-                </Button>
-              )}
+              <Button type="submit" loading={form.formState.isSubmitting}>
+                {editing ? "変更を保存" : "ロール作成"}
+              </Button>
             </DialogFooter>
           </form>
         </DialogContent>
