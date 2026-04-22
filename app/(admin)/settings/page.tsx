@@ -35,7 +35,7 @@ const schema = z.object({
   defaultCurrency: z.enum(["JPY", "TWD", "USD"]),
   timezone: z.string().min(1),
   cancellationWindowHours: z.number().min(0).max(168),
-  pointsExpirationDays: z.number().min(30).max(3650),
+  // pointsExpirationDays は固定ルール（翌年末失効）のため schema から除外
   maintenanceMode: z.boolean(),
   registrationOpen: z.boolean(),
 });
@@ -66,7 +66,6 @@ export default function SettingsPage() {
       defaultCurrency: settings.defaultCurrency,
       timezone: settings.timezone,
       cancellationWindowHours: settings.cancellationWindowHours,
-      pointsExpirationDays: settings.pointsExpirationDays,
       maintenanceMode: settings.maintenanceMode,
       registrationOpen: settings.registrationOpen,
     },
@@ -76,6 +75,8 @@ export default function SettingsPage() {
     await new Promise((r) => setTimeout(r, 500));
     const next: SystemSettings = {
       ...data,
+      // ポイント有効期限は固定ルール（翌年末失効）で変更不可
+      pointsExpirationDays: settings.pointsExpirationDays,
       updatedAt: new Date().toISOString(),
       updatedBy: "運営管理者",
     };
@@ -198,18 +199,16 @@ export default function SettingsPage() {
                 予約開始時刻の何時間前まで無料キャンセル可能か
               </p>
             </div>
+            {/* ポイント有効期限は固定ルール（変更不可・表示のみ）*/}
             <div className="grid gap-1.5">
-              <Label required>ポイント有効期限（日）</Label>
-              <Input
-                type="number"
-                min={30}
-                max={3650}
-                {...form.register("pointsExpirationDays", {
-                  valueAsNumber: true,
-                })}
-              />
+              <Label>ポイント有効期限</Label>
+              <div className="h-9 rounded-md border border-input bg-muted/30 px-3 py-1 text-sm flex items-center">
+                翌年末まで（固定ルール）
+              </div>
               <p className="text-xs text-muted-foreground">
-                最終利用日からの日数
+                取得時期に関わらず、翌年の 12/31 に一括失効。
+                <br />
+                例：2026 年内に取得したポイント → 2027/12/31 失効
               </p>
             </div>
           </div>
