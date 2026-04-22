@@ -652,30 +652,32 @@ export interface Invite {
 }
 
 // ─── キャンペーン・イベント ─────────────────────
+/**
+ * ユーザーアプリ側の CampaignDetail 画面と完全一致。
+ * 報名機制は存在しない（純粋な告知・販促情報）。
+ * 参加申込みは CTA 経由で app 内の別画面（/search, /game など）へ誘導する。
+ */
 export type CampaignStatus = "draft" | "scheduled" | "active" | "ended";
-export type CampaignKind =
-  | "tournament" // 大会
-  | "lesson_event" // レッスンイベント
-  | "promotion" // 販促
-  | "social_gathering"; // 交流会
 
 export interface Campaign {
   id: string;
   title: string;
-  description: string;
-  kind: CampaignKind;
-  venueId?: string; // 省略時はプラットフォーム全体
+  /** バナー/ヒーロー画像 URL（app 詳細画面の上部に表示）*/
+  image?: string;
+  /** 本文（\n 改行可能、app 内で whitespace-pre-line 表示）*/
+  body: string;
+  /** 期間表記の自由文字列。例："2026/03/01 〜 2026/04/30" / "毎週土曜日" */
+  dateLabel: string;
+  /** 開催場所（任意）*/
+  location?: string;
+  /** CTA ボタンのラベル（任意）*/
+  ctaLabel?: string;
+  /** CTA 遷移先（app 内ルート。例 "/search" "/game"）*/
+  ctaLink?: string;
+  /** 範囲：プラットフォーム全体 or 特定企業のみ */
   scope: "platform" | "venue";
-  startAt: string;
-  endAt: string;
-  /** 参加費 */
-  fee: number;
-  /** 定員 */
-  capacity: number;
-  /** 申込数 */
-  participantCount: number;
+  venueId?: string;
   status: CampaignStatus;
-  bannerUrl?: string;
   createdBy: string;
   createdAt: string;
 }

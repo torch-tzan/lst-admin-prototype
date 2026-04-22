@@ -83,6 +83,7 @@ export function cleanupOldMockKeys() {
     "lst-mock-coaches-v1",
     "lst-mock-commission-v1",
     "lst-mock-earnings-v1",
+    "lst-mock-campaigns-v1",
   ];
   legacy.forEach((k) => {
     try {
@@ -113,7 +114,8 @@ export const MOCK_KEYS = {
   staff: "lst-mock-staff-v1",
   shifts: "lst-mock-shifts-v1",
   invites: "lst-mock-invites-v1",
-  campaigns: "lst-mock-campaigns-v1",
+  // v2: app と構造を一致、報名・参加費・定員を削除
+  campaigns: "lst-mock-campaigns-v2",
   systemSettings: "lst-mock-settings-v1",
   // v2: MFA 除去 + RBAC を CRUD マトリクスに変更したためキーを bump
   adminAccounts: "lst-mock-admin-accounts-v2",
