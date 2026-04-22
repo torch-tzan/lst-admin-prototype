@@ -36,8 +36,9 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { AnnouncementBadge } from "@/components/status-badge";
+import { useAuth } from "@/lib/auth";
 import { useMockCrud, MOCK_KEYS } from "@/lib/use-mock-crud";
-import { ANNOUNCEMENTS } from "@/lib/mock-data";
+import { ANNOUNCEMENTS, VENUES } from "@/lib/mock-data";
 import type { Announcement, AnnouncementStatus, AnnouncementTarget } from "@/lib/types";
 import { relativeTime, formatDate } from "@/lib/utils";
 
@@ -61,6 +62,9 @@ const TARGET_LABEL: Record<AnnouncementTarget, string> = {
 };
 
 export default function AnnouncementsPage() {
+  const { user } = useAuth();
+  const isVenue = user?.role === "venue-admin";
+  const venue = isVenue ? VENUES.find((v) => v.id === user?.venueId) : undefined;
   const { items, add, hydrated } = useMockCrud<Announcement>(
     MOCK_KEYS.announcements,
     ANNOUNCEMENTS
@@ -74,7 +78,7 @@ export default function AnnouncementsPage() {
     defaultValues: {
       title: "",
       body: "",
-      target: "all",
+      target: isVenue ? "users" : "all",
       sendMode: "now",
       scheduledAt: "",
     },
@@ -95,7 +99,9 @@ export default function AnnouncementsPage() {
       status: data.sendMode === "now" ? "sent" : "scheduled",
       sentAt: data.sendMode === "now" ? now : undefined,
       scheduledAt: data.sendMode === "scheduled" ? data.scheduledAt : undefined,
-      author: "LST プラットフォーム管理者",
+      author: isVenue
+        ? `${venue?.name ?? "企業"} 管理者`
+        : "LST プラットフォーム管理者",
       createdAt: now,
     };
     add(newItem);
@@ -274,10 +280,14 @@ export default function AnnouncementsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="all">全員</SelectItem>
-                    <SelectItem value="users">一般利用者</SelectItem>
-                    <SelectItem value="coaches">コーチ</SelectItem>
-                    <SelectItem value="venue-admins">企業管理者</SelectItem>
+                    {!isVenue && <SelectItem value="all">全員</SelectItem>}
+                    <SelectItem value="users">
+                      {isVenue ? "自社利用者" : "一般利用者"}
+                    </SelectItem>
+                    {!isVenue && <SelectItem value="coaches">コーチ</SelectItem>}
+                    {!isVenue && (
+                      <SelectItem value="venue-admins">企業管理者</SelectItem>
+                    )}
                   </SelectContent>
                 </Select>
               </div>

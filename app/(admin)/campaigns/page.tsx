@@ -37,11 +37,18 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@/components/ui/table";
 import { useAuth } from "@/lib/auth";
 import { useMockCrud, MOCK_KEYS } from "@/lib/use-mock-crud";
 import { CAMPAIGNS, VENUES } from "@/lib/mock-data";
 import type { Campaign, CampaignStatus } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 const STATUS_LABEL: Record<
   CampaignStatus,
@@ -282,90 +289,103 @@ export default function CampaignsPage() {
         {filtered.length === 0 ? (
           <EmptyState icon={Sparkles} title="該当するキャンペーンはありません" />
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3 p-4">
-            {filtered.map((c) => {
-              const st = STATUS_LABEL[c.status];
-              const venue = c.venueId
-                ? VENUES.find((v) => v.id === c.venueId)
-                : undefined;
-              return (
-                <Card
-                  key={c.id}
-                  className="overflow-hidden hover:shadow-md transition-shadow"
-                >
-                  {/* Banner */}
-                  <div className="aspect-[5/3] bg-muted relative">
-                    {c.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img
-                        src={c.image}
-                        alt={c.title}
-                        className="w-full h-full object-cover"
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center">
-                        <ImageIcon className="w-8 h-8 text-muted-foreground" />
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead className="w-20">バナー</TableHead>
+                <TableHead>タイトル / 本文</TableHead>
+                <TableHead className="w-44">期間 / 場所</TableHead>
+                <TableHead className="w-40">CTA</TableHead>
+                <TableHead className="w-28">スコープ</TableHead>
+                <TableHead className="w-24">状態</TableHead>
+                <TableHead className="text-right w-36">操作</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {filtered.map((c) => {
+                const st = STATUS_LABEL[c.status];
+                const venue = c.venueId
+                  ? VENUES.find((v) => v.id === c.venueId)
+                  : undefined;
+                return (
+                  <TableRow key={c.id}>
+                    <TableCell>
+                      <div className="w-16 aspect-[5/3] rounded bg-muted overflow-hidden flex items-center justify-center">
+                        {c.image ? (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img
+                            src={c.image}
+                            alt={c.title}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <ImageIcon className="w-4 h-4 text-muted-foreground" />
+                        )}
                       </div>
-                    )}
-                    <div className="absolute top-2 right-2">
-                      <Badge variant={st.v}>{st.label}</Badge>
-                    </div>
-                    {c.scope === "venue" && venue && (
-                      <div className="absolute bottom-2 left-2">
+                    </TableCell>
+                    <TableCell>
+                      <div className="font-medium line-clamp-1">{c.title}</div>
+                      <div className="text-xs text-muted-foreground line-clamp-1 mt-0.5">
+                        {c.body}
+                      </div>
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      <div className="flex items-center gap-1">
+                        <Calendar className="w-3 h-3 shrink-0 text-muted-foreground" />
+                        <span>{c.dateLabel}</span>
+                      </div>
+                      {c.location && (
+                        <div className="flex items-center gap-1 text-muted-foreground mt-0.5">
+                          <MapPin className="w-3 h-3 shrink-0" />
+                          <span className="truncate">{c.location}</span>
+                        </div>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {c.ctaLabel ? (
+                        <div className="flex items-center gap-1 text-primary">
+                          <ExternalLink className="w-3 h-3" />
+                          <span className="truncate">{c.ctaLabel}</span>
+                        </div>
+                      ) : (
+                        <span className="text-muted-foreground">—</span>
+                      )}
+                    </TableCell>
+                    <TableCell className="text-xs">
+                      {c.scope === "platform" ? (
+                        <Badge variant="default">全体</Badge>
+                      ) : venue ? (
                         <Badge variant="secondary">{venue.name}</Badge>
+                      ) : (
+                        <Badge variant="secondary">自社</Badge>
+                      )}
+                    </TableCell>
+                    <TableCell>
+                      <Badge variant={st.v}>{st.label}</Badge>
+                    </TableCell>
+                    <TableCell className="text-right">
+                      <div className="flex justify-end gap-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setPreview(c)}
+                        >
+                          プレビュー
+                        </Button>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => openEdit(c)}
+                        >
+                          編集
+                        </Button>
                       </div>
-                    )}
-                  </div>
-
-                  <CardContent className="p-4">
-                    <div className="font-semibold mb-1 line-clamp-2">
-                      {c.title}
-                    </div>
-                    <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                      <Calendar className="w-3 h-3 shrink-0" />
-                      <span className="truncate">{c.dateLabel}</span>
-                    </div>
-                    {c.location && (
-                      <div className="text-xs text-muted-foreground mb-2 flex items-center gap-1">
-                        <MapPin className="w-3 h-3 shrink-0" />
-                        <span className="truncate">{c.location}</span>
-                      </div>
-                    )}
-                    <div className="text-xs text-muted-foreground line-clamp-2 mb-3">
-                      {c.body}
-                    </div>
-
-                    {c.ctaLabel && (
-                      <div className="text-xs text-primary flex items-center gap-1 mb-3">
-                        <ExternalLink className="w-3 h-3" />
-                        {c.ctaLabel}
-                        <span className="text-muted-foreground ml-1">
-                          → {c.ctaLink}
-                        </span>
-                      </div>
-                    )}
-
-                    <div className="flex justify-end gap-1 pt-2 border-t">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setPreview(c)}
-                      >
-                        プレビュー
-                      </Button>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => openEdit(c)}
-                      >
-                        編集
-                      </Button>
-                    </div>
-                  </CardContent>
-                </Card>
-              );
-            })}
-          </div>
+                    </TableCell>
+                  </TableRow>
+                );
+              })}
+            </TableBody>
+          </Table>
         )}
       </Section>
 

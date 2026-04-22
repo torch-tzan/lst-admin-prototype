@@ -24,7 +24,7 @@ import {
 import { BarChart } from "@/components/bar-chart";
 import { useAuth } from "@/lib/auth";
 import { BOOKINGS, EARNINGS, VENUES, COACHES } from "@/lib/mock-data";
-import { formatYen } from "@/lib/utils";
+import { formatYen, cn } from "@/lib/utils";
 
 const LESSON_LABEL = { practice: "対面", online: "オンライン", video_review: "動画レビュー" };
 
@@ -66,6 +66,8 @@ export default function SalesPage() {
     return BOOKINGS.filter((b) => {
       if (b.status !== "confirmed" && b.status !== "completed") return false;
       if (user?.role === "venue-admin" && b.venueId !== user.venueId) return false;
+      // 企業管理者：コーチレッスンは学生↔コーチの直接取引のため、コート予約のみ集計
+      if (user?.role === "venue-admin" && b.type !== "court") return false;
       if (venueFilter !== "all" && b.venueId !== venueFilter) return false;
       const d = new Date(b.date);
       if (period === "this-month") {
@@ -198,7 +200,7 @@ export default function SalesPage() {
       }
     >
       {/* KPI */}
-      <div className={`grid grid-cols-2 md:grid-cols-${user?.role === "lst-admin" ? 5 : 3} gap-3 mb-5`}>
+      <div className={cn("grid grid-cols-2 gap-3 mb-5", user?.role === "lst-admin" ? "md:grid-cols-5" : "md:grid-cols-3")}>
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">
@@ -267,9 +269,9 @@ export default function SalesPage() {
         </CardContent>
       </Card>
 
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 mb-5">
+      <div className={cn("grid grid-cols-1 gap-4 mb-5", user?.role === "lst-admin" && "lg:grid-cols-2")}>
         {/* 企業別売上 */}
-        <Section title="企業別売上">
+        <Section title={user?.role === "lst-admin" ? "企業別売上" : "自社売上"}>
           <Table>
             <TableHeader>
               <TableRow>
@@ -292,7 +294,8 @@ export default function SalesPage() {
           </Table>
         </Section>
 
-        {/* レッスンタイプ別 */}
+        {/* レッスンタイプ別（LST のみ）*/}
+        {user?.role === "lst-admin" && (
         <Section title="レッスンタイプ別">
           <Table>
             <TableHeader>
@@ -315,6 +318,7 @@ export default function SalesPage() {
             </TableBody>
           </Table>
         </Section>
+        )}
       </div>
 
       {/* コーチ別売上 Top（LST only）*/}

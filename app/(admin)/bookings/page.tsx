@@ -79,6 +79,8 @@ export default function BookingsPage() {
   const filtered = useMemo(() => {
     return items
       .filter((b) => isScopedVenue(user, b.venueId))
+      // 企業管理者：コーチレッスンは学生↔コーチの直接取引のため、自社コート予約のみ表示
+      .filter((b) => (user?.role === "venue-admin" ? b.type === "court" : true))
       .filter((b) => {
         if (isLst && venueFilter !== "all" && b.venueId !== venueFilter) return false;
         if (statusFilter !== "all" && b.status !== statusFilter) return false;
@@ -108,6 +110,7 @@ export default function BookingsPage() {
     () =>
       items
         .filter((b) => isScopedVenue(user, b.venueId))
+        .filter((b) => (user?.role === "venue-admin" ? b.type === "court" : true))
         .filter(
           (b) =>
             b.status === "reschedule_requested" || b.status === "refund_requested"
