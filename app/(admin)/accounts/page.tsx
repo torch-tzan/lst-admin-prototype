@@ -5,14 +5,13 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
 import { toast } from "sonner";
-import { Plus, UserCog, Search, ShieldAlert, Mail, KeyRound } from "lucide-react";
+import { Plus, UserCog, Search, Mail } from "lucide-react";
 
 import { PageShell, Section, EmptyState } from "@/components/page-shell";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import { Switch } from "@/components/ui/switch";
 import {
   Select,
   SelectContent,
@@ -42,24 +41,14 @@ import { ADMIN_ACCOUNTS, ADMIN_ROLES, VENUES } from "@/lib/mock-data";
 import type {
   AdminAccount,
   AdminAccountStatus,
-  AdminRoleKey,
 } from "@/lib/types";
-import { formatDate, relativeTime } from "@/lib/utils";
+import { relativeTime } from "@/lib/utils";
 
 const schema = z.object({
   name: z.string().min(2, "氏名は 2 文字以上"),
   email: z.string().email("正しいメールアドレス"),
-  roleKey: z.enum([
-    "lst-super",
-    "lst-operations",
-    "lst-finance",
-    "lst-support",
-    "venue-owner",
-    "venue-manager",
-    "venue-staff",
-  ]),
+  roleKey: z.string().min(1, "ロールを選択"),
   venueId: z.string().optional(),
-  mfaRequired: z.boolean(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -83,6 +72,7 @@ export default function AccountsPage() {
     MOCK_KEYS.adminAccounts,
     ADMIN_ACCOUNTS
   );
+  const { items: roles } = useMockCrud(MOCK_KEYS.adminRoles, ADMIN_ROLES);
   const [q, setQ] = useState("");
   const [roleFilter, setRoleFilter] = useState<string>("all");
   const [statusFilter, setStatusFilter] = useState<"all" | AdminAccountStatus>(
@@ -98,7 +88,6 @@ export default function AccountsPage() {
       email: "",
       roleKey: user?.role === "lst-admin" ? "lst-operations" : "venue-manager",
       venueId: user?.role === "venue-admin" ? user.venueId : "",
-      mfaRequired: true,
     },
   });
 
@@ -110,13 +99,13 @@ export default function AccountsPage() {
   }, [items, user, isLst]);
 
   const availableRoles = useMemo(() => {
-    if (isLst) return ADMIN_ROLES;
-    return ADMIN_ROLES.filter((r) => r.scope === "venue");
-  }, [isLst]);
+    if (isLst) return roles;
+    return roles.filter((r) => r.scope === "venue");
+  }, [isLst, roles]);
 
   const roleMap = useMemo(
-    () => Object.fromEntries(ADMIN_ROLES.map((r) => [r.key, r])),
-    []
+    () => Object.fromEntries(roles.map((r) => [r.key, r])),
+    [roles]
   );
 
   const filtered = useMemo(() => {
@@ -133,7 +122,7 @@ export default function AccountsPage() {
     total: scopedAccounts.length,
     active: scopedAccounts.filter((a) => a.status === "active").length,
     invited: scopedAccounts.filter((a) => a.status === "invited").length,
-    mfa: scopedAccounts.filter((a) => a.mfaEnabled).length,
+    suspended: scopedAccounts.filter((a) => a.status === "suspended").length,
   };
 
   const openNew = () => {
@@ -143,7 +132,6 @@ export default function AccountsPage() {
       email: "",
       roleKey: isLst ? "lst-operations" : "venue-manager",
       venueId: isLst ? "" : user?.venueId,
-      mfaRequired: true,
     });
     setDialogOpen(true);
   };
@@ -155,7 +143,6 @@ export default function AccountsPage() {
       email: a.email,
       roleKey: a.roleKey,
       venueId: a.venueId ?? "",
-      mfaRequired: a.mfaEnabled,
     });
     setDialogOpen(true);
   };
@@ -171,7 +158,6 @@ export default function AccountsPage() {
         email: data.email,
         roleKey: data.roleKey,
         venueId: venueScoped ? data.venueId : undefined,
-        mfaEnabled: data.mfaRequired,
       });
       toast.success(`アカウントを更新：${data.name}`);
     } else {
@@ -182,7 +168,6 @@ export default function AccountsPage() {
         roleKey: data.roleKey,
         venueId: venueScoped ? data.venueId : undefined,
         status: "invited",
-        mfaEnabled: data.mfaRequired,
         createdAt: new Date().toISOString(),
         createdBy: user?.name,
       });
@@ -202,11 +187,6 @@ export default function AccountsPage() {
     toast.success(`招待メールを再送しました：${a.email}`);
   };
 
-  const resetMfa = (a: AdminAccount) => {
-    update(a.id, { mfaEnabled: false });
-    toast.success(`${a.name} の MFA をリセットしました。次回ログイン時に再設定が必要です。`);
-  };
-
   if (!hydrated) return null;
 
   const selectedRole = form.watch("roleKey");
@@ -218,7 +198,7 @@ export default function AccountsPage() {
       description={
         isLst
           ? "LST 運営チームと全加盟店の管理者アカウント。権限は「権限・ロール」で定義されたロールから割り当てます。"
-          : "当企業の管理者アカウント。オーナーがロール割当てと MFA を管理します。"
+          : "当企業の管理者アカウント。オーナーがロール割当てを管理します。"
       }
       breadcrumbs={[
         { label: isLst ? "システム" : "会員/アカウント" },
@@ -249,26 +229,12 @@ export default function AccountsPage() {
           </div>
         </div>
         <div className="bg-card border rounded-lg px-4 py-3">
-          <div className="text-xs text-muted-foreground">MFA 有効</div>
-          <div className="text-2xl font-bold mt-1">
-            {stats.mfa}
-            <span className="text-xs text-muted-foreground ml-1">
-              / {stats.total}
-            </span>
+          <div className="text-xs text-muted-foreground">停止中</div>
+          <div className="text-2xl font-bold text-muted-foreground mt-1">
+            {stats.suspended}
           </div>
         </div>
       </div>
-
-      {/* MFA 警告 */}
-      {stats.total - stats.mfa > 0 && isLst && (
-        <div className="mb-4 rounded-md border border-warning/40 bg-warning/10 px-4 py-3 text-sm flex items-start gap-2">
-          <ShieldAlert className="w-4 h-4 text-[hsl(38_92%_30%)] mt-0.5 shrink-0" />
-          <div>
-            <strong>{stats.total - stats.mfa} 名</strong>{" "}
-            の管理者が MFA（二要素認証）未設定です。セキュリティ強化のため全管理者に MFA を強制することを推奨します。
-          </div>
-        </div>
-      )}
 
       <Section
         actions={
@@ -321,7 +287,6 @@ export default function AccountsPage() {
                 <TableHead>アカウント</TableHead>
                 <TableHead>ロール</TableHead>
                 {isLst && <TableHead>範囲</TableHead>}
-                <TableHead>MFA</TableHead>
                 <TableHead>最終ログイン</TableHead>
                 <TableHead>状態</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -362,13 +327,6 @@ export default function AccountsPage() {
                           : venue?.name ?? "—"}
                       </TableCell>
                     )}
-                    <TableCell>
-                      {a.mfaEnabled ? (
-                        <Badge variant="success">有効</Badge>
-                      ) : (
-                        <Badge variant="muted">未設定</Badge>
-                      )}
-                    </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
                       {a.lastLoginAt ? relativeTime(a.lastLoginAt) : "未ログイン"}
                     </TableCell>
@@ -394,16 +352,6 @@ export default function AccountsPage() {
                           >
                             <Mail className="w-3.5 h-3.5" />
                             再送
-                          </Button>
-                        )}
-                        {a.mfaEnabled && (
-                          <Button
-                            variant="ghost"
-                            size="sm"
-                            onClick={() => resetMfa(a)}
-                          >
-                            <KeyRound className="w-3.5 h-3.5" />
-                            MFA リセット
                           </Button>
                         )}
                         <Button
@@ -435,7 +383,7 @@ export default function AccountsPage() {
             </DialogTitle>
             <DialogDescription>
               {editing
-                ? "アカウントのロールと MFA 要件を変更できます。メール変更不可。"
+                ? "アカウントのロールを変更できます。メール変更不可。"
                 : "招待メールを送信し、リンククリックでパスワード設定後に利用開始します。"}
             </DialogDescription>
           </DialogHeader>
@@ -466,7 +414,7 @@ export default function AccountsPage() {
               <Label required>ロール</Label>
               <Select
                 value={form.watch("roleKey")}
-                onValueChange={(v) => form.setValue("roleKey", v as AdminRoleKey)}
+                onValueChange={(v) => form.setValue("roleKey", v)}
               >
                 <SelectTrigger>
                   <SelectValue />
@@ -506,19 +454,6 @@ export default function AccountsPage() {
                 </Select>
               </div>
             )}
-
-            <div className="flex items-center justify-between border rounded-md p-3">
-              <div>
-                <div className="text-sm font-medium">MFA（二要素認証）必須</div>
-                <div className="text-xs text-muted-foreground">
-                  推奨：財務・管理権限を持つアカウントは必ず有効化
-                </div>
-              </div>
-              <Switch
-                checked={form.watch("mfaRequired")}
-                onCheckedChange={(v) => form.setValue("mfaRequired", v)}
-              />
-            </div>
 
             <DialogFooter>
               <Button

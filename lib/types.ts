@@ -667,52 +667,59 @@ export interface Campaign {
 }
 
 // ─── 管理者アカウント・権限 ───────────────────────
-export type AdminRoleKey =
-  | "lst-super"
-  | "lst-operations"
-  | "lst-finance"
-  | "lst-support"
-  | "venue-owner"
-  | "venue-manager"
-  | "venue-staff";
 
-export type PermissionKey =
-  // 会員
-  | "user.read" | "user.write" | "user.suspend" | "user.points_adjust"
-  // 企業
-  | "venue.read" | "venue.write" | "venue.suspend"
-  // コーチ
-  | "coach.read" | "coach.write" | "coach.approve" | "coach.suspend"
-  // 予約
-  | "booking.read" | "booking.approve_reschedule" | "booking.refund"
-  // コート・備品
-  | "court.read" | "court.write" | "equipment.read" | "equipment.write"
-  // 財務
-  | "finance.read" | "finance.export" | "payout.retry" | "commission.write"
-  // クーポン・ポイント
-  | "coupon.read" | "coupon.write" | "coupon.distribute"
-  | "points.read" | "points.write" | "points.adjust"
-  // お知らせ・キャンペーン
-  | "announcement.read" | "announcement.write" | "announcement.send"
-  | "campaign.read" | "campaign.write"
-  // スタッフ
-  | "staff.read" | "staff.write" | "shift.read" | "shift.write"
-  // システム・管理者
-  | "settings.read" | "settings.write"
-  | "account.read" | "account.write" | "role.write"
-  | "audit.read";
+/** 管理対象モジュール（CRUD マトリクスの行）*/
+export type ModuleKey =
+  | "user"
+  | "venue"
+  | "coach"
+  | "booking"
+  | "court"
+  | "equipment"
+  | "finance"
+  | "commission"
+  | "coupon"
+  | "points"
+  | "announcement"
+  | "campaign"
+  | "staff"
+  | "shift"
+  | "settings"
+  | "account"
+  | "audit";
+
+/** 標準 CRUD アクション（マトリクスの列）*/
+export type CrudAction = "read" | "create" | "update" | "delete";
+
+/** 機微操作（CRUD 外の特殊権限）*/
+export type SpecialAction =
+  | "coach.approve"
+  | "coach.suspend"
+  | "booking.approve_reschedule"
+  | "booking.refund"
+  | "payment.retry"
+  | "finance.export"
+  | "coupon.distribute"
+  | "announcement.send"
+  | "user.points_adjust"
+  | "user.suspend"
+  | "venue.suspend";
 
 export interface AdminRole {
   id: string;
-  key: AdminRoleKey;
+  /** ユニーク識別子（カスタムロールは自動生成）*/
+  key: string;
   label: string;
   description: string;
   scope: "lst" | "venue";
-  /** ロール種別 */
-  permissions: PermissionKey[];
-  /** システム標準ロール（削除不可）*/
+  /** システム標準ロール（削除不可・編集制限あり）*/
   builtin: boolean;
+  /** モジュール別 CRUD マトリクス */
+  modulePerms: Partial<Record<ModuleKey, CrudAction[]>>;
+  /** 機微操作リスト */
+  specialPerms: SpecialAction[];
   createdAt: string;
+  createdBy?: string;
 }
 
 export type AdminAccountStatus = "active" | "invited" | "suspended";
@@ -722,15 +729,75 @@ export interface AdminAccount {
   email: string;
   name: string;
   avatar?: string;
-  roleKey: AdminRoleKey;
+  /** 割当てられたロールの key */
+  roleKey: string;
   /** venue 範囲のアカウントのみ */
   venueId?: string;
   status: AdminAccountStatus;
   lastLoginAt?: string;
-  mfaEnabled: boolean;
   createdAt: string;
   createdBy?: string;
 }
+
+/** モジュール表示ラベル */
+export const MODULE_LABELS: Record<ModuleKey, string> = {
+  user: "会員管理",
+  venue: "企業管理",
+  coach: "コーチ管理",
+  booking: "予約管理",
+  court: "コート管理",
+  equipment: "備品レンタル",
+  finance: "売上・決済",
+  commission: "手数料設定",
+  coupon: "クーポン管理",
+  points: "ポイント管理",
+  announcement: "お知らせ配信",
+  campaign: "キャンペーン",
+  staff: "スタッフ管理",
+  shift: "シフト管理",
+  settings: "システム設定",
+  account: "管理者アカウント",
+  audit: "監査ログ",
+};
+
+export const CRUD_LABELS: Record<CrudAction, string> = {
+  read: "閲覧",
+  create: "作成",
+  update: "編集",
+  delete: "削除",
+};
+
+export const SPECIAL_ACTION_LABELS: Record<SpecialAction, { label: string; module: ModuleKey }> = {
+  "coach.approve": { label: "コーチ審査（承認・却下）", module: "coach" },
+  "coach.suspend": { label: "コーチ停止・復帰", module: "coach" },
+  "booking.approve_reschedule": { label: "予約振替審査", module: "booking" },
+  "booking.refund": { label: "予約返金処理", module: "booking" },
+  "payment.retry": { label: "Stripe 送金エラー再送", module: "finance" },
+  "finance.export": { label: "財務 CSV エクスポート", module: "finance" },
+  "coupon.distribute": { label: "クーポン配布実行", module: "coupon" },
+  "announcement.send": { label: "お知らせ配信実行", module: "announcement" },
+  "user.points_adjust": { label: "会員ポイント手動調整", module: "user" },
+  "user.suspend": { label: "会員停止・復帰", module: "user" },
+  "venue.suspend": { label: "企業停止・復帰", module: "venue" },
+};
+
+/** scope ごとに利用可能なモジュール */
+export const SCOPE_MODULES: Record<"lst" | "venue", ModuleKey[]> = {
+  lst: [
+    "user", "venue", "coach",
+    "booking", "court", "equipment",
+    "finance", "commission",
+    "coupon", "points",
+    "announcement", "campaign",
+    "settings", "account", "audit",
+  ],
+  venue: [
+    "booking", "court", "equipment",
+    "coupon", "announcement", "campaign",
+    "staff", "shift",
+    "account", "audit",
+  ],
+};
 
 // ─── 監査ログ ────────────────────────────────────
 export type AuditActionCategory =
@@ -750,7 +817,7 @@ export interface AuditLogEntry {
   id: string;
   actorId: string;
   actorName: string;
-  actorRoleKey: AdminRoleKey;
+  actorRoleKey: string;
   /** 影響範囲（venue-scoped の場合のみ）*/
   scopeVenueId?: string;
   category: AuditActionCategory;
