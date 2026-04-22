@@ -73,6 +73,20 @@ export function resetAllMockData(keys: string[]) {
   keys.forEach((k) => localStorage.removeItem(k));
 }
 
+/** 古いキー版本を自動クリーンアップ（schema 変更時の cache 不整合対策） */
+export function cleanupOldMockKeys() {
+  if (typeof window === "undefined") return;
+  const legacy = [
+    "lst-mock-admin-accounts-v1",
+    "lst-mock-admin-roles-v1",
+  ];
+  legacy.forEach((k) => {
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+  });
+}
+
 export const MOCK_KEYS = {
   venues: "lst-mock-venues-v1",
   courts: "lst-mock-courts-v1",
@@ -95,7 +109,8 @@ export const MOCK_KEYS = {
   invites: "lst-mock-invites-v1",
   campaigns: "lst-mock-campaigns-v1",
   systemSettings: "lst-mock-settings-v1",
-  adminAccounts: "lst-mock-admin-accounts-v1",
-  adminRoles: "lst-mock-admin-roles-v1",
+  // v2: MFA 除去 + RBAC を CRUD マトリクスに変更したためキーを bump
+  adminAccounts: "lst-mock-admin-accounts-v2",
+  adminRoles: "lst-mock-admin-roles-v2",
   auditLog: "lst-mock-audit-log-v1",
 };

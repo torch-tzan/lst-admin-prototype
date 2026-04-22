@@ -121,8 +121,8 @@ export default function RolesPage() {
       label: r.label,
       description: r.description,
       scope: r.scope,
-      modulePerms: r.modulePerms,
-      specialPerms: r.specialPerms,
+      modulePerms: r.modulePerms ?? {},
+      specialPerms: r.specialPerms ?? [],
     });
     setDialogOpen(true);
   };
@@ -133,8 +133,8 @@ export default function RolesPage() {
       label: `${r.label}（コピー）`,
       description: r.description,
       scope: r.scope,
-      modulePerms: { ...r.modulePerms },
-      specialPerms: [...r.specialPerms],
+      modulePerms: { ...(r.modulePerms ?? {}) },
+      specialPerms: [...(r.specialPerms ?? [])],
     });
     setDialogOpen(true);
   };
@@ -274,10 +274,13 @@ export default function RolesPage() {
         <TabsContent value={scope}>
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {scopedRoles.map((role) => {
-              const moduleCount = Object.values(role.modulePerms).filter(
+              // 旧形式の localStorage cache 対策（念のため fallback）
+              const modulePerms = role.modulePerms ?? {};
+              const specialPerms = role.specialPerms ?? [];
+              const moduleCount = Object.values(modulePerms).filter(
                 (v) => v && v.length > 0
               ).length;
-              const totalCruds = Object.values(role.modulePerms).reduce(
+              const totalCruds = Object.values(modulePerms).reduce(
                 (s, v) => s + (v?.length ?? 0),
                 0
               );
@@ -335,7 +338,7 @@ export default function RolesPage() {
                         </div>
                         <div className="bg-muted/40 rounded-md p-2 text-center">
                           <div className="text-lg font-semibold">
-                            {role.specialPerms.length}
+                            {specialPerms.length}
                           </div>
                           <div className="text-[10px] text-muted-foreground">
                             機微操作
@@ -344,7 +347,7 @@ export default function RolesPage() {
                       </div>
 
                       <div className="space-y-1.5">
-                        {Object.entries(role.modulePerms)
+                        {Object.entries(modulePerms)
                           .filter(([, v]) => v && v.length > 0)
                           .map(([mod, actions]) => (
                             <div key={mod} className="flex items-center gap-2">

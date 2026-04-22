@@ -2,6 +2,7 @@
 
 import { createContext, useContext, useEffect, useState } from "react";
 import type { AdminUser, Role } from "./types";
+import { cleanupOldMockKeys } from "./use-mock-crud";
 
 const STORAGE_KEY = "lst-admin-session-v1";
 
@@ -43,6 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    // schema 変更後の古い cache を自動削除
+    cleanupOldMockKeys();
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) setUser(JSON.parse(raw));
