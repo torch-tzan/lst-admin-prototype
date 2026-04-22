@@ -487,6 +487,51 @@ export default function CoachesPage() {
                   </div>
                 )}
 
+                {/* 税務情報 */}
+                {selected.taxInfo && (
+                  <div>
+                    <div className="text-xs font-medium text-muted-foreground mb-1.5">
+                      税務情報
+                    </div>
+                    <div className="text-sm bg-muted/40 rounded-md p-3 space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">事業形態</span>
+                        <Badge variant="secondary">
+                          {selected.taxInfo.businessType === "individual"
+                            ? "個人事業主"
+                            : "法人"}
+                        </Badge>
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">
+                          インボイス登録番号
+                        </span>
+                        {selected.taxInfo.invoiceNumber ? (
+                          <span className="font-mono text-xs">
+                            {selected.taxInfo.invoiceNumber}
+                          </span>
+                        ) : (
+                          <span className="text-xs text-muted-foreground">未登録</span>
+                        )}
+                      </div>
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-muted-foreground">源泉徴収</span>
+                        <Badge
+                          variant={
+                            selected.taxInfo.withholdingApplicable
+                              ? "warning"
+                              : "muted"
+                          }
+                        >
+                          {selected.taxInfo.withholdingApplicable
+                            ? "対象（10.21%）"
+                            : "対象外"}
+                        </Badge>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
                 {selected.reviewNote && (
                   <div>
                     <div className="text-xs font-medium text-muted-foreground mb-1.5">

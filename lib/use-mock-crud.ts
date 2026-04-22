@@ -80,6 +80,9 @@ export function cleanupOldMockKeys() {
     "lst-mock-admin-accounts-v1",
     "lst-mock-admin-roles-v1",
     "lst-mock-members-v1",
+    "lst-mock-coaches-v1",
+    "lst-mock-commission-v1",
+    "lst-mock-earnings-v1",
   ];
   legacy.forEach((k) => {
     try {
@@ -92,7 +95,6 @@ export const MOCK_KEYS = {
   venues: "lst-mock-venues-v1",
   courts: "lst-mock-courts-v1",
   equipment: "lst-mock-equipment-v1",
-  coaches: "lst-mock-coaches-v1",
   bookings: "lst-mock-bookings-v1",
   reviews: "lst-mock-reviews-v1",
   matches: "lst-mock-matches-v1",
@@ -102,8 +104,10 @@ export const MOCK_KEYS = {
   pointsLogs: "lst-mock-points-logs-v1",
   pointsRules: "lst-mock-points-rules-v1",
   coupons: "lst-mock-coupons-v1",
-  commission: "lst-mock-commission-v1",
-  earnings: "lst-mock-earnings-v1",
+  // v2: lessonVenueRate 除去 + EarningRecord から courtFee/venueFee 除去のため bump
+  commission: "lst-mock-commission-v2",
+  earnings: "lst-mock-earnings-v2",
+  coaches: "lst-mock-coaches-v2",
   messageThreads: "lst-mock-msg-threads-v1",
   videoReviews: "lst-mock-video-reviews-v1",
   staff: "lst-mock-staff-v1",

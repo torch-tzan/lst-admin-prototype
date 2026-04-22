@@ -302,29 +302,19 @@ export default function PaymentsPage() {
                   </div>
                   <div className="border rounded-md divide-y">
                     <div className="flex justify-between px-3 py-2 text-sm">
-                      <span>利用者支払額（Gross）</span>
+                      <span>レッスン料（利用者支払額）</span>
                       <span className="font-semibold">{formatYen(selected.grossAmount)}</span>
                     </div>
-                    {selected.courtFee > 0 && (
-                      <div className="flex justify-between px-3 py-2 text-sm">
-                        <span>- コート費（企業）</span>
-                        <span>-{formatYen(selected.courtFee)}</span>
-                      </div>
-                    )}
                     <div className="flex justify-between px-3 py-2 text-sm text-destructive">
                       <span>- プラットフォーム手数料</span>
                       <span>-{formatYen(selected.platformFee)}</span>
-                    </div>
-                    <div className="flex justify-between px-3 py-2 text-sm text-destructive">
-                      <span>- 企業手数料</span>
-                      <span>-{formatYen(selected.venueFee)}</span>
                     </div>
                     <div className="flex justify-between px-3 py-2 text-sm text-destructive">
                       <span>- Stripe 手数料</span>
                       <span>-{formatYen(selected.stripeFee)}</span>
                     </div>
                     <div className="flex justify-between px-3 py-2 font-semibold bg-success/5">
-                      <span>コーチ取り分</span>
+                      <span>コーチ銀行口座へ振込</span>
                       <span
                         className={
                           selected.status === "refunded"
@@ -336,16 +326,19 @@ export default function PaymentsPage() {
                       </span>
                     </div>
                   </div>
+                  <div className="text-[10px] text-muted-foreground mt-1.5">
+                    ＊ コート利用料は利用者が別途企業へ支払い（当記録には含まれない）
+                  </div>
                 </div>
 
                 <div>
                   <div className="text-xs font-medium text-muted-foreground mb-1.5">
-                    Stripe 詳細
+                    決済・送金詳細
                   </div>
                   <div className="text-xs font-mono bg-muted/40 rounded-md p-3 space-y-1">
-                    <div>Charge ID: {selected.stripeChargeId}</div>
-                    {selected.stripeTransferId && (
-                      <div>Transfer ID: {selected.stripeTransferId}</div>
+                    <div>Stripe Charge ID: {selected.stripeChargeId}</div>
+                    {selected.payoutReference && (
+                      <div>振込参照: {selected.payoutReference}</div>
                     )}
                     {selected.paidAt && (
                       <div>着金時刻: {formatDate(selected.paidAt, true)}</div>

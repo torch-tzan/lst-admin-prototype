@@ -177,6 +177,15 @@ export interface Coach {
     accountNumber: string;
     accountHolder: string;
   };
+  /** 税務情報（日本）*/
+  taxInfo?: {
+    /** 事業形態 */
+    businessType: "individual" | "corporation";
+    /** インボイス適格請求書発行事業者番号（T + 13 桁）*/
+    invoiceNumber?: string;
+    /** 源泉徴収対象（個人事業主で報酬等の源泉徴収が必要な場合 true）*/
+    withholdingApplicable: boolean;
+  };
   /** 後台審核備註 */
   reviewNote?: string;
   /** 申請時間 */
@@ -455,6 +464,14 @@ export interface Coupon {
 }
 
 // ─── 抽成設定（コミッション）───────────────────────
+/**
+ * 2 種類の取引それぞれ独立の手数料率：
+ * - コート予約：利用者 → 企業（プラットフォームが手数料を中抜き）
+ * - コーチレッスン：利用者 → コーチ（プラットフォームが手数料を中抜き、企業は関与しない）
+ *
+ * 学生がレッスンでコートを使う場合は「コート予約」と「コーチレッスン」を
+ * 別々の取引として支払う。企業はコート予約側の売上のみ受取。
+ */
 export interface CommissionRule {
   id: string;
   /** 適用対象 */
@@ -463,13 +480,11 @@ export interface CommissionRule {
   coachId?: string;
   /** コート予約：プラットフォーム取り分（%）*/
   courtPlatformRate: number;
-  /** 施設取り分（%）*/
+  /** コート予約：企業取り分（%）= 100 - courtPlatformRate */
   courtVenueRate: number;
   /** レッスン：プラットフォーム取り分（%）*/
   lessonPlatformRate: number;
-  /** 施設取り分（%）*/
-  lessonVenueRate: number;
-  /** コーチ取り分（%）= 100 - 他二つ */
+  /** レッスン：コーチ取り分（%）= 100 - lessonPlatformRate - Stripe 手数料 */
   validFrom: string;
   validTo?: string;
   note?: string;
@@ -487,37 +502,39 @@ export type PayoutTxStatus =
   | "failed" // Stripe エラー / 口座エラー
   | "refunded"; // レッスン取消に伴う返金
 
+/**
+ * コーチレッスンの収益記録（企業は関与しない）
+ * 学生がコートを使う場合は別途「コート予約」として企業へ支払うため、
+ * この EarningRecord にはコート費・企業手数料は含まれない。
+ */
 export interface EarningRecord {
   id: string;
   coachId: string;
   coachName: string;
   lessonId: string;
   lessonType: LessonType;
-  venueId: string;
-  venueName: string;
+  /** レッスン実施場所（会計には関係なし、参考情報のみ）*/
+  venueId?: string;
+  venueName?: string;
   userId: string;
   userName: string;
-  /** 利用者支払額（コート費含む）*/
+  /** 利用者支払額（レッスン料のみ）*/
   grossAmount: number;
-  /** コート費（施設側）*/
-  courtFee: number;
   /** プラットフォーム手数料 */
   platformFee: number;
-  /** 施設手数料（課金取引経由の場合）*/
-  venueFee: number;
   /** Stripe 決済手数料（3.6% + ¥40 想定）*/
   stripeFee: number;
-  /** コーチ取り分（= gross - court - platform - venue - stripe）*/
+  /** コーチ取り分（= grossAmount - platformFee - stripeFee）*/
   coachEarning: number;
-  /** Stripe charge ID（決済 ID）*/
+  /** Stripe charge ID（利用者からの決済）*/
   stripeChargeId: string;
-  /** Stripe transfer ID（コーチへの振替）*/
-  stripeTransferId?: string;
+  /** 銀行振込参照番号（Stripe Payout ID or bank transaction ref）*/
+  payoutReference?: string;
   /** 取引状態 */
   status: PayoutTxStatus;
   /** レッスン完了時刻（支払確定トリガー）*/
   earnedAt: string;
-  /** コーチ着金時刻 */
+  /** コーチ銀行口座への着金時刻 */
   paidAt?: string;
   /** 失敗時のエラー */
   errorMessage?: string;

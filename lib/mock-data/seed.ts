@@ -201,6 +201,11 @@ export const COACHES: Coach[] = [
       bankName: "みずほ銀行", branchName: "広島支店",
       accountType: "普通", accountNumber: "1234567", accountHolder: "ヤマダ ショウタ",
     },
+    taxInfo: {
+      businessType: "individual",
+      invoiceNumber: "T1234567890123",
+      withholdingApplicable: true,
+    },
     appliedAt: "2025-08-20",
     approvedAt: "2025-08-25",
   },
@@ -235,6 +240,11 @@ export const COACHES: Coach[] = [
       bankName: "三井住友銀行", branchName: "広島中央支店",
       accountType: "普通", accountNumber: "7654321", accountHolder: "イトウ ミホ",
     },
+    taxInfo: {
+      businessType: "individual",
+      invoiceNumber: "T9876543210987",
+      withholdingApplicable: true,
+    },
     appliedAt: "2025-09-05",
     approvedAt: "2025-09-10",
   },
@@ -267,6 +277,10 @@ export const COACHES: Coach[] = [
     bankAccount: {
       bankName: "広島銀行", branchName: "北広島支店",
       accountType: "普通", accountNumber: "2345678", accountHolder: "タカハシ ダイスケ",
+    },
+    taxInfo: {
+      businessType: "individual",
+      withholdingApplicable: true,
     },
     appliedAt: "2025-11-12",
     approvedAt: "2025-11-15",
@@ -771,6 +785,10 @@ export const COUPONS: Coupon[] = [
 ];
 
 // ─── 抽成（コミッション）設定 ─────────────────────
+/**
+ * コート予約：利用者 → 企業 の取引で Platform 手数料を中抜き
+ * コーチレッスン：利用者 → コーチ の取引で Platform 手数料を中抜き（企業は関与なし）
+ */
 export const COMMISSION_RULES: CommissionRule[] = [
   {
     id: "cm-default",
@@ -778,9 +796,8 @@ export const COMMISSION_RULES: CommissionRule[] = [
     courtPlatformRate: 15,
     courtVenueRate: 85,
     lessonPlatformRate: 20,
-    lessonVenueRate: 10,
     validFrom: "2024-01-01",
-    note: "全企業・全コーチのデフォルト設定。レッスンはコーチ 70% 取り分",
+    note: "全企業・全コーチのデフォルト。コーチレッスンはコーチ 80%（Stripe 手数料別途控除）",
   },
   {
     id: "cm-v1",
@@ -788,10 +805,9 @@ export const COMMISSION_RULES: CommissionRule[] = [
     venueId: "v1",
     courtPlatformRate: 12,
     courtVenueRate: 88,
-    lessonPlatformRate: 18,
-    lessonVenueRate: 12,
+    lessonPlatformRate: 20, // レッスンは venue_override でも同じ（企業無関係のため）
     validFrom: "2025-09-01",
-    note: "パデルコート広島：優先取引先割引（コート 3%, レッスン 2%）",
+    note: "パデルコート広島：コート予約で優先取引先割引（Platform 3% 減）",
   },
   {
     id: "cm-v2",
@@ -800,27 +816,38 @@ export const COMMISSION_RULES: CommissionRule[] = [
     courtPlatformRate: 15,
     courtVenueRate: 85,
     lessonPlatformRate: 20,
-    lessonVenueRate: 10,
     validFrom: "2025-11-01",
     note: "北広島パデルクラブ：デフォルト準拠",
   },
+  {
+    id: "cm-co-001",
+    scope: "coach_override",
+    coachId: "co-001",
+    courtPlatformRate: 15,
+    courtVenueRate: 85,
+    lessonPlatformRate: 15, // S 級コーチ優遇：Platform 15% のみ（coach 85%）
+    validFrom: "2025-09-01",
+    note: "山田翔太（S 級）：優遇手数料 Platform 15%",
+  },
 ];
 
-// ─── 収益・自動出金（Stripe Connect）──────────────
+// ─── 収益・自動出金 ─────────────────────────────
 /**
- * Stripe 決済手数料は 3.6% + ¥40 で計算。
- * プラットフォーム/施設手数料はコミッション設定 (COMMISSION_RULES) と一致。
+ * 学生 → コーチ の取引のみ。企業は関与しない。
+ * Stripe 決済手数料 3.6% + ¥40、Platform 手数料をコミッション設定から取得。
+ * 残高はコーチの銀行口座へ自動送金（Stripe Payout）。
  */
-function computeFees(gross: number, courtFee: number, venueId: string) {
-  const rule =
-    COMMISSION_RULES.find((r) => r.venueId === venueId) ||
-    COMMISSION_RULES.find((r) => r.scope === "platform_default")!;
-  const lessonPortion = gross - courtFee;
-  const platformFee = Math.round((lessonPortion * rule.lessonPlatformRate) / 100);
-  const venueFee = Math.round((lessonPortion * rule.lessonVenueRate) / 100);
+function computeFees(gross: number, coachId: string) {
+  const coachRule = COMMISSION_RULES.find((r) => r.coachId === coachId);
+  const defaultRule = COMMISSION_RULES.find(
+    (r) => r.scope === "platform_default"
+  )!;
+  const platformRate =
+    coachRule?.lessonPlatformRate ?? defaultRule.lessonPlatformRate;
+  const platformFee = Math.round((gross * platformRate) / 100);
   const stripeFee = Math.round(gross * 0.036 + 40);
-  const coachEarning = lessonPortion - platformFee - venueFee - stripeFee;
-  return { courtFee, platformFee, venueFee, stripeFee, coachEarning };
+  const coachEarning = gross - platformFee - stripeFee;
+  return { platformFee, stripeFee, coachEarning };
 }
 
 function makeEarning(
@@ -829,27 +856,27 @@ function makeEarning(
   coachName: string,
   lessonId: string,
   lessonType: "practice" | "online" | "video_review",
-  venueId: string,
-  venueName: string,
+  venueId: string | undefined,
+  venueName: string | undefined,
   userId: string,
   userName: string,
   gross: number,
-  courtFee: number,
   earnedAt: string,
   status: "pending" | "processing" | "paid" | "failed" | "refunded" = "paid",
   errorMessage?: string
 ): EarningRecord {
-  const fees = computeFees(gross, courtFee, venueId);
+  const fees = computeFees(gross, coachId);
   const stripeChargeId = `ch_${Math.random().toString(36).slice(2, 11)}`;
-  const stripeTransferId = status === "paid" || status === "processing"
-    ? `tr_${Math.random().toString(36).slice(2, 11)}`
-    : undefined;
+  const payoutReference =
+    status === "paid" || status === "processing"
+      ? `po_${Math.random().toString(36).slice(2, 11)}`
+      : undefined;
   return {
     id, coachId, coachName, lessonId, lessonType,
     venueId, venueName, userId, userName,
     grossAmount: gross,
     ...fees,
-    stripeChargeId, stripeTransferId,
+    stripeChargeId, payoutReference,
     status, errorMessage,
     earnedAt,
     paidAt: status === "paid" ? earnedAt : undefined,
@@ -858,25 +885,25 @@ function makeEarning(
 }
 
 export const EARNINGS: EarningRecord[] = [
-  // 山田 翔太（co-001）
-  makeEarning("er-001", "co-001", "山田 翔太", "bk-103", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 9000, 2000, todayStr(0) + "T16:00:00", "processing"),
-  makeEarning("er-002", "co-001", "山田 翔太", "bk-110", "video_review", "v1", "パデルコート広島", "u-010", "吉田 京子", 7000, 0, todayStr(-2) + "T17:00:00"),
-  makeEarning("er-003", "co-001", "山田 翔太", "prev-001", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 9000, 2000, todayStr(-5) + "T10:00:00"),
-  makeEarning("er-004", "co-001", "山田 翔太", "prev-002", "practice", "v1", "パデルコート広島", "u-008", "石川 正治", 9000, 2000, todayStr(-8) + "T14:00:00"),
-  makeEarning("er-005", "co-001", "山田 翔太", "prev-003", "online", "v1", "パデルコート広島", "u-001", "田中 太郎", 5500, 0, todayStr(-12) + "T20:00:00"),
-  makeEarning("er-006", "co-001", "山田 翔太", "prev-004", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 9000, 2000, todayStr(-18) + "T09:00:00"),
+  // 山田 翔太（co-001）※ gross = レッスン料のみ（コート費は含まない）
+  makeEarning("er-001", "co-001", "山田 翔太", "bk-103", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 7000, todayStr(0) + "T16:00:00", "processing"),
+  makeEarning("er-002", "co-001", "山田 翔太", "bk-110", "video_review", undefined, undefined, "u-010", "吉田 京子", 7000, todayStr(-2) + "T17:00:00"),
+  makeEarning("er-003", "co-001", "山田 翔太", "prev-001", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 7000, todayStr(-5) + "T10:00:00"),
+  makeEarning("er-004", "co-001", "山田 翔太", "prev-002", "practice", "v1", "パデルコート広島", "u-008", "石川 正治", 7000, todayStr(-8) + "T14:00:00"),
+  makeEarning("er-005", "co-001", "山田 翔太", "prev-003", "online", undefined, undefined, "u-001", "田中 太郎", 5500, todayStr(-12) + "T20:00:00"),
+  makeEarning("er-006", "co-001", "山田 翔太", "prev-004", "practice", "v1", "パデルコート広島", "u-003", "鈴木 健", 7000, todayStr(-18) + "T09:00:00"),
   // 伊藤 美穂（co-002）
-  makeEarning("er-007", "co-002", "伊藤 美穂", "bk-107", "online", "v1", "パデルコート広島", "u-007", "林 優子", 4500, 0, todayStr(1) + "T20:00:00", "pending"),
-  makeEarning("er-008", "co-002", "伊藤 美穂", "bk-207", "practice", "v2", "北広島パデルクラブ", "u-017", "原田 貴志", 8500, 3500, todayStr(2) + "T11:00:00", "pending"),
-  makeEarning("er-009", "co-002", "伊藤 美穂", "prev-005", "practice", "v1", "パデルコート広島", "u-006", "松本 誠", 7000, 2000, todayStr(-6) + "T15:00:00"),
-  makeEarning("er-010", "co-002", "伊藤 美穂", "prev-006", "online", "v2", "北広島パデルクラブ", "u-011", "中田 信二", 4500, 0, todayStr(-10) + "T19:00:00"),
-  makeEarning("er-011", "co-002", "伊藤 美穂", "prev-007", "practice", "v1", "パデルコート広島", "u-005", "加藤 由美", 7000, 2000, todayStr(-14) + "T10:00:00", "failed", "Stripe: 口座情報不一致"),
+  makeEarning("er-007", "co-002", "伊藤 美穂", "bk-107", "online", undefined, undefined, "u-007", "林 優子", 4500, todayStr(1) + "T20:00:00", "pending"),
+  makeEarning("er-008", "co-002", "伊藤 美穂", "bk-207", "practice", "v2", "北広島パデルクラブ", "u-017", "原田 貴志", 5000, todayStr(2) + "T11:00:00", "pending"),
+  makeEarning("er-009", "co-002", "伊藤 美穂", "prev-005", "practice", "v1", "パデルコート広島", "u-006", "松本 誠", 5000, todayStr(-6) + "T15:00:00"),
+  makeEarning("er-010", "co-002", "伊藤 美穂", "prev-006", "online", undefined, undefined, "u-011", "中田 信二", 4500, todayStr(-10) + "T19:00:00"),
+  makeEarning("er-011", "co-002", "伊藤 美穂", "prev-007", "practice", "v1", "パデルコート広島", "u-005", "加藤 由美", 5000, todayStr(-14) + "T10:00:00", "failed", "Stripe: 口座情報不一致"),
   // 高橋 大輔（co-003）
-  makeEarning("er-012", "co-003", "高橋 大輔", "bk-203", "practice", "v2", "北広島パデルクラブ", "u-013", "西村 淳", 7000, 3500, todayStr(0) + "T17:00:00", "processing"),
-  makeEarning("er-013", "co-003", "高橋 大輔", "prev-008", "practice", "v2", "北広島パデルクラブ", "u-013", "西村 淳", 7000, 3500, todayStr(-9) + "T16:00:00"),
-  makeEarning("er-014", "co-003", "高橋 大輔", "prev-009", "practice", "v2", "北広島パデルクラブ", "u-016", "坂本 大樹", 7000, 3500, todayStr(-15) + "T10:00:00"),
+  makeEarning("er-012", "co-003", "高橋 大輔", "bk-203", "practice", "v2", "北広島パデルクラブ", "u-013", "西村 淳", 3500, todayStr(0) + "T17:00:00", "processing"),
+  makeEarning("er-013", "co-003", "高橋 大輔", "prev-008", "practice", "v2", "北広島パデルクラブ", "u-013", "西村 淳", 3500, todayStr(-9) + "T16:00:00"),
+  makeEarning("er-014", "co-003", "高橋 大輔", "prev-009", "practice", "v2", "北広島パデルクラブ", "u-016", "坂本 大樹", 3500, todayStr(-15) + "T10:00:00"),
   // 返金例
-  makeEarning("er-015", "co-001", "山田 翔太", "cancelled-001", "practice", "v1", "パデルコート広島", "u-004", "渡辺 正", 9000, 2000, todayStr(-20) + "T10:00:00", "refunded"),
+  makeEarning("er-015", "co-001", "山田 翔太", "cancelled-001", "practice", "v1", "パデルコート広島", "u-004", "渡辺 正", 7000, todayStr(-20) + "T10:00:00", "refunded"),
 ];
 
 // ─── 訊息 ─────────────────────────────────────────

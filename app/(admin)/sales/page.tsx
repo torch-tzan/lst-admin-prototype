@@ -93,9 +93,12 @@ export default function SalesPage() {
     0
   );
   const platformFee = scopedEarnings.reduce((s, e) => s + e.platformFee, 0);
-  const venueFee = scopedEarnings.reduce((s, e) => s + e.venueFee, 0);
   const stripeFee = scopedEarnings.reduce((s, e) => s + e.stripeFee, 0);
   const coachEarn = scopedEarnings.reduce((s, e) => s + e.coachEarning, 0);
+  // 企業側の売上（コート予約収益のみ、コーチレッスンは関与なし）
+  const venueRevenue = scopedBookings
+    .filter((b) => b.type === "court")
+    .reduce((s, b) => s + b.price + (b.equipmentFee ?? 0), 0);
 
   // 企業別内訳
   const venueBreakdown = VENUES.filter((v) => v.status === "active")
@@ -222,10 +225,10 @@ export default function SalesPage() {
         <Card>
           <CardContent className="p-4">
             <div className="text-xs text-muted-foreground">
-              {user?.role === "lst-admin" ? "企業手数料" : "自社受取（手数料控除後）"}
+              {user?.role === "lst-admin" ? "コート予約売上" : "自社売上（コート＋備品）"}
             </div>
             <div className="text-xl font-bold text-success tracking-tight mt-2">
-              {formatYen(venueFee)}
+              {formatYen(venueRevenue)}
             </div>
           </CardContent>
         </Card>

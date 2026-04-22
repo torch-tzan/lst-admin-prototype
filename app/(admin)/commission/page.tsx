@@ -47,7 +47,6 @@ const schema = z
     courtPlatformRate: z.number().min(0).max(100),
     courtVenueRate: z.number().min(0).max(100),
     lessonPlatformRate: z.number().min(0).max(100),
-    lessonVenueRate: z.number().min(0).max(100),
     validFrom: z.string().min(1, "開始日を指定"),
     validTo: z.string().optional(),
     note: z.string().optional(),
@@ -55,10 +54,6 @@ const schema = z
   .refine((d) => d.courtPlatformRate + d.courtVenueRate <= 100, {
     message: "コート側：プラットフォーム + 企業 は 100% 以下",
     path: ["courtPlatformRate"],
-  })
-  .refine((d) => d.lessonPlatformRate + d.lessonVenueRate <= 100, {
-    message: "レッスン側：プラットフォーム + 企業 は 100% 以下（残りがコーチ取り分）",
-    path: ["lessonPlatformRate"],
   })
   .refine(
     (d) => d.scope === "platform_default" || !!d.venueId || !!d.coachId,
@@ -84,7 +79,6 @@ export default function CommissionPage() {
       courtPlatformRate: 15,
       courtVenueRate: 85,
       lessonPlatformRate: 20,
-      lessonVenueRate: 10,
       validFrom: new Date().toISOString().slice(0, 10),
       validTo: "",
       note: "",
@@ -103,7 +97,6 @@ export default function CommissionPage() {
       courtPlatformRate: defaultRule?.courtPlatformRate ?? 15,
       courtVenueRate: defaultRule?.courtVenueRate ?? 85,
       lessonPlatformRate: defaultRule?.lessonPlatformRate ?? 20,
-      lessonVenueRate: defaultRule?.lessonVenueRate ?? 10,
       validFrom: new Date().toISOString().slice(0, 10),
       validTo: "",
       note: "",
@@ -120,7 +113,6 @@ export default function CommissionPage() {
       courtPlatformRate: r.courtPlatformRate,
       courtVenueRate: r.courtVenueRate,
       lessonPlatformRate: r.lessonPlatformRate,
-      lessonVenueRate: r.lessonVenueRate,
       validFrom: r.validFrom,
       validTo: r.validTo ?? "",
       note: r.note ?? "",
@@ -207,7 +199,7 @@ export default function CommissionPage() {
             </div>
             <div className="p-5">
               <div className="text-xs text-muted-foreground uppercase tracking-wider mb-3">
-                レッスン収益分配
+                コーチレッスン（企業は関与しない）
               </div>
               <div className="space-y-2">
                 <div className="flex justify-between">
@@ -216,21 +208,14 @@ export default function CommissionPage() {
                     {defaultRule.lessonPlatformRate}%
                   </span>
                 </div>
-                <div className="flex justify-between">
-                  <span className="text-sm">企業</span>
-                  <span className="font-semibold">
-                    {defaultRule.lessonVenueRate}%
-                  </span>
-                </div>
                 <div className="flex justify-between pt-2 border-t">
                   <span className="text-sm">コーチ（残余）</span>
                   <span className="font-bold text-success">
-                    {100 - defaultRule.lessonPlatformRate - defaultRule.lessonVenueRate}
-                    %
+                    {100 - defaultRule.lessonPlatformRate}%
                   </span>
                 </div>
                 <div className="text-xs text-muted-foreground">
-                  ＊ Stripe 3.6% + ¥40 は別途控除
+                  ＊ Stripe 3.6% + ¥40 は別途控除。コート費用は利用者が別途企業へ支払い。
                 </div>
               </div>
             </div>
@@ -264,7 +249,7 @@ export default function CommissionPage() {
                 <TableHead>種別</TableHead>
                 <TableHead>対象</TableHead>
                 <TableHead>コート (P/V)</TableHead>
-                <TableHead>レッスン (P/V/C)</TableHead>
+                <TableHead>レッスン (P/C)</TableHead>
                 <TableHead>適用期間</TableHead>
                 <TableHead>備考</TableHead>
                 <TableHead className="text-right">操作</TableHead>
@@ -289,9 +274,9 @@ export default function CommissionPage() {
                       {r.courtPlatformRate}% / {r.courtVenueRate}%
                     </TableCell>
                     <TableCell className="text-sm">
-                      {r.lessonPlatformRate}% / {r.lessonVenueRate}% /{" "}
+                      {r.lessonPlatformRate}% /{" "}
                       <span className="text-success font-medium">
-                        {100 - r.lessonPlatformRate - r.lessonVenueRate}%
+                        {100 - r.lessonPlatformRate}%
                       </span>
                     </TableCell>
                     <TableCell className="text-xs text-muted-foreground">
@@ -423,38 +408,25 @@ export default function CommissionPage() {
 
               <div className="border rounded-md p-3">
                 <div className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-2">
-                  コーチレッスン
+                  コーチレッスン <span className="normal-case">（企業は関与しない）</span>
                 </div>
-                <div className="grid grid-cols-2 gap-2">
-                  <div className="grid gap-1.5">
-                    <Label>プラットフォーム (%)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      {...form.register("lessonPlatformRate", {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
-                  <div className="grid gap-1.5">
-                    <Label>企業 (%)</Label>
-                    <Input
-                      type="number"
-                      min={0}
-                      max={100}
-                      {...form.register("lessonVenueRate", {
-                        valueAsNumber: true,
-                      })}
-                    />
-                  </div>
+                <div className="grid gap-1.5">
+                  <Label>プラットフォーム (%)</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    max={100}
+                    {...form.register("lessonPlatformRate", {
+                      valueAsNumber: true,
+                    })}
+                  />
                 </div>
                 <div className="mt-2 text-xs text-success font-medium">
                   コーチ取り分 ={" "}
-                  {100 -
-                    (form.watch("lessonPlatformRate") || 0) -
-                    (form.watch("lessonVenueRate") || 0)}
-                  %
+                  {100 - (form.watch("lessonPlatformRate") || 0)}%
+                </div>
+                <div className="text-[10px] text-muted-foreground mt-1">
+                  ＊ Stripe 手数料 3.6% + ¥40 は別途控除
                 </div>
               </div>
             </div>
