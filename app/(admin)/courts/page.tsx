@@ -30,7 +30,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { useAuth } from "@/lib/auth";
 import { useMockCrud, MOCK_KEYS } from "@/lib/use-mock-crud";
-import { COURTS } from "@/lib/mock-data";
+import { COURTS, VENUES } from "@/lib/mock-data";
 import type { Court, CourtType } from "@/lib/types";
 import { COURT_AMENITY_OPTIONS } from "@/lib/types";
 import { formatYen, cn } from "@/lib/utils";
@@ -78,10 +78,23 @@ export default function CourtsPage() {
   const [courtDialog, setCourtDialog] = useState(false);
   const [editing, setEditing] = useState<Court | null>(null);
   const [bulkOpen, setBulkOpen] = useState(false);
+  const [venueFilter, setVenueFilter] = useState<string>("all");
 
+  const isLst = user?.role === "lst-admin";
+
+  // LST: 全企業のコート（filter 可能）/ 企業 admin: 当企業のみ
   const myCourts = useMemo(() => {
-    return items.filter((c) => c.venueId === user?.venueId);
-  }, [items, user]);
+    return items.filter((c) => {
+      if (!isLst) return c.venueId === user?.venueId;
+      if (venueFilter !== "all") return c.venueId === venueFilter;
+      return true;
+    });
+  }, [items, user, isLst, venueFilter]);
+
+  const venueMap = useMemo(
+    () => Object.fromEntries(VENUES.map((v) => [v.id, v.name])),
+    []
+  );
 
   const [selectedCourt, setSelectedCourt] = useState<string | null>(null);
   const activeCourtId = selectedCourt ?? myCourts[0]?.id ?? null;
@@ -202,11 +215,37 @@ export default function CourtsPage() {
   return (
     <PageShell
       title="コート・時間帯"
-      description="当企業のコートリストと予約可能時間帯の管理。セルをクリックで開放/閉鎖を切替。"
-      breadcrumbs={[{ label: "施設/予約" }, { label: "コート管理" }]}
+      description={
+        isLst
+          ? "全企業のコート一覧と予約可能時間帯の管理。企業フィルタで絞り込み可能。"
+          : "当企業のコートリストと予約可能時間帯の管理。セルをクリックで開放/閉鎖を切替。"
+      }
+      breadcrumbs={[
+        { label: isLst ? "メイン" : "施設/予約" },
+        { label: "コート管理" },
+      ]}
       actions={
         <>
-          <Button variant="outline" onClick={() => setBulkOpen(true)} disabled={!activeCourtId}>
+          {isLst && (
+            <Select value={venueFilter} onValueChange={setVenueFilter}>
+              <SelectTrigger className="w-44 h-9 text-xs">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="all">全企業</SelectItem>
+                {VENUES.filter((v) => v.status === "active").map((v) => (
+                  <SelectItem key={v.id} value={v.id}>
+                    {v.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button
+            variant="outline"
+            onClick={() => setBulkOpen(true)}
+            disabled={!activeCourtId}
+          >
             <Zap className="w-4 h-4" />
             一括設定
           </Button>
@@ -248,6 +287,11 @@ export default function CourtsPage() {
                       <div className="font-medium text-sm truncate">{c.name}</div>
                       {!c.active && <Badge variant="muted">停止中</Badge>}
                     </div>
+                    {isLst && (
+                      <div className="text-[10px] text-primary mt-0.5 truncate">
+                        {venueMap[c.venueId]}
+                      </div>
+                    )}
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {c.type} · {formatYen(c.hourlyPrice)}/h
                     </div>

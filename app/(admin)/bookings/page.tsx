@@ -47,7 +47,7 @@ import {
 import { BookingBadge } from "@/components/status-badge";
 import { useAuth } from "@/lib/auth";
 import { useMockCrud, MOCK_KEYS } from "@/lib/use-mock-crud";
-import { BOOKINGS } from "@/lib/mock-data";
+import { BOOKINGS, VENUES } from "@/lib/mock-data";
 import type { Booking, BookingStatus } from "@/lib/types";
 import { formatYen } from "@/lib/utils";
 import { isScopedVenue } from "@/lib/permissions";
@@ -64,6 +64,8 @@ export default function BookingsPage() {
   const [q, setQ] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | BookingStatus>("all");
   const [dateFilter, setDateFilter] = useState<"all" | "today" | "week" | "past">("all");
+  const [venueFilter, setVenueFilter] = useState<string>("all");
+  const isLst = user?.role === "lst-admin";
   const [selected, setSelected] = useState<Booking | null>(null);
   const [refundOpen, setRefundOpen] = useState(false);
 
@@ -78,6 +80,7 @@ export default function BookingsPage() {
     return items
       .filter((b) => isScopedVenue(user, b.venueId))
       .filter((b) => {
+        if (isLst && venueFilter !== "all" && b.venueId !== venueFilter) return false;
         if (statusFilter !== "all" && b.status !== statusFilter) return false;
 
         const d = b.date;
@@ -216,6 +219,21 @@ export default function BookingsPage() {
                 <SelectItem value="past">過去</SelectItem>
               </SelectContent>
             </Select>
+            {isLst && (
+              <Select value={venueFilter} onValueChange={setVenueFilter}>
+                <SelectTrigger className="w-40 h-8 text-xs">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="all">全企業</SelectItem>
+                  {VENUES.filter((v) => v.status === "active").map((v) => (
+                    <SelectItem key={v.id} value={v.id}>
+                      {v.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            )}
           </div>
         }
       >
@@ -230,6 +248,7 @@ export default function BookingsPage() {
             <TableHeader>
               <TableRow>
                 <TableHead>日時</TableHead>
+                {isLst && <TableHead>企業</TableHead>}
                 <TableHead>利用者 / 種別</TableHead>
                 <TableHead>コート / コーチ</TableHead>
                 <TableHead>金額</TableHead>
@@ -246,6 +265,11 @@ export default function BookingsPage() {
                       {b.startTime}-{b.endTime}
                     </div>
                   </TableCell>
+                  {isLst && (
+                    <TableCell className="text-xs text-primary">
+                      {b.venueName}
+                    </TableCell>
+                  )}
                   <TableCell>
                     <div className="font-medium">{b.userName}</div>
                     <div className="text-xs text-muted-foreground">
