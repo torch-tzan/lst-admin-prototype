@@ -15,9 +15,6 @@ import {
   Shield,
   RotateCcw,
   ChevronRight,
-  Users,
-  Wallet,
-  CalendarCheck,
   Lock,
   Zap,
 } from "lucide-react";
@@ -93,13 +90,6 @@ export default function LoginPage() {
             加盟店・会員・コーチ・予約・決済・キャンペーンを一元管理。Stripe
             Connect 経由の自動出金とリアルタイム KPI を提供します。
           </p>
-        </div>
-
-        <div className="grid grid-cols-2 gap-3">
-          <Feature icon={Users} label="会員管理" sub="3,842 名" />
-          <Feature icon={Building2} label="加盟店" sub="24 企業" />
-          <Feature icon={CalendarCheck} label="今月予約" sub="1,248 件" />
-          <Feature icon={Wallet} label="GMV" sub="¥12.85M" />
         </div>
 
         <div className="text-xs text-slate-500">
@@ -321,20 +311,3 @@ export default function LoginPage() {
   );
 }
 
-function Feature({
-  icon: Icon,
-  label,
-  sub,
-}: {
-  icon: React.ElementType;
-  label: string;
-  sub: string;
-}) {
-  return (
-    <div className="bg-slate-800/60 border border-slate-700 rounded-lg px-4 py-3">
-      <Icon className="w-4 h-4 text-primary mb-2" />
-      <div className="text-xs text-slate-400">{label}</div>
-      <div className="text-sm font-semibold text-white mt-0.5">{sub}</div>
-    </div>
-  );
-}
