@@ -38,7 +38,9 @@ import {
 import { useAuth } from "@/lib/auth";
 import { useMockCrud, MOCK_KEYS } from "@/lib/use-mock-crud";
 import { STAFF } from "@/lib/mock-data";
-import type { Staff, StaffRole, StaffStatus } from "@/lib/types";
+import type { Staff, StaffRole, StaffStatus, PayrollLineItem } from "@/lib/types";
+import { formatYen } from "@/lib/utils";
+import { Plus as PlusIcon, X } from "lucide-react";
 
 const ROLE_LABEL: Record<StaffRole, string> = {
   owner: "オーナー",
@@ -54,6 +56,10 @@ const schema = z.object({
   role: z.enum(["owner", "manager", "staff", "receptionist"]),
   hiredAt: z.string().min(1, "入社日を指定"),
   note: z.string().optional(),
+  hourlyRate: z.number().min(0).optional(),
+  lessonAllowance: z.number().min(0).optional(),
+  bookingAllowance: z.number().min(0).optional(),
+  achievementBonus: z.number().min(0).optional(),
 });
 type FormData = z.infer<typeof schema>;
 
@@ -69,6 +75,9 @@ export default function StaffPage() {
   const [dialogOpen, setDialogOpen] = useState(false);
   const [editing, setEditing] = useState<Staff | null>(null);
 
+  // 個別明細項目（保険・年金・源泉徴収など、人ごとに設定）
+  const [lineItems, setLineItems] = useState<PayrollLineItem[]>([]);
+
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: {
@@ -78,6 +87,10 @@ export default function StaffPage() {
       role: "staff",
       hiredAt: new Date().toISOString().slice(0, 10),
       note: "",
+      hourlyRate: 1100,
+      lessonAllowance: 0,
+      bookingAllowance: 0,
+      achievementBonus: 0,
     },
   });
 
@@ -110,6 +123,7 @@ export default function StaffPage() {
 
   const openNew = () => {
     setEditing(null);
+    setLineItems([]);
     form.reset({
       name: "",
       email: "",
@@ -117,12 +131,17 @@ export default function StaffPage() {
       role: "staff",
       hiredAt: new Date().toISOString().slice(0, 10),
       note: "",
+      hourlyRate: 1100,
+      lessonAllowance: 0,
+      bookingAllowance: 0,
+      achievementBonus: 0,
     });
     setDialogOpen(true);
   };
 
   const openEdit = (s: Staff) => {
     setEditing(s);
+    setLineItems(s.customLineItems ?? []);
     form.reset({
       name: s.name,
       email: s.email,
@@ -130,21 +149,41 @@ export default function StaffPage() {
       role: s.role,
       hiredAt: s.hiredAt,
       note: s.note ?? "",
+      hourlyRate: s.hourlyRate ?? 1100,
+      lessonAllowance: s.lessonAllowance ?? 0,
+      bookingAllowance: s.bookingAllowance ?? 0,
+      achievementBonus: s.achievementBonus ?? 0,
     });
     setDialogOpen(true);
   };
 
+  const addLineItem = () =>
+    setLineItems((prev) => [
+      ...prev,
+      {
+        id: `li-${Date.now()}`,
+        label: "",
+        amount: 0,
+        category: "deduction",
+      },
+    ]);
+  const updateLineItem = (id: string, patch: Partial<PayrollLineItem>) =>
+    setLineItems((prev) => prev.map((li) => (li.id === id ? { ...li, ...patch } : li)));
+  const removeLineItem = (id: string) =>
+    setLineItems((prev) => prev.filter((li) => li.id !== id));
+
   const onSubmit = async (data: FormData) => {
     await new Promise((r) => setTimeout(r, 400));
+    const payload = { ...data, customLineItems: lineItems };
     if (editing) {
-      update(editing.id, data);
+      update(editing.id, payload);
       toast.success(`スタッフを更新：${data.name}`);
     } else {
       add({
         id: `s-${Date.now()}`,
         venueId: user?.venueId ?? "",
         status: "active",
-        ...data,
+        ...payload,
       });
       toast.success(`スタッフを追加：${data.name}`);
     }
@@ -373,6 +412,160 @@ export default function StaffPage() {
               <Label>備考</Label>
               <Textarea rows={2} {...form.register("note")} />
             </div>
+
+            {/* ───── 給与設定 ───── */}
+            <div className="border rounded-md p-3 bg-muted/20 space-y-3">
+              <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+                給与設定（時給・手当・成果報酬）
+              </div>
+              <div className="grid grid-cols-2 gap-3">
+                <div className="grid gap-1.5">
+                  <Label>基本時給（¥/h）</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    {...form.register("hourlyRate", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>レッスン手当（¥/件）</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    {...form.register("lessonAllowance", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>予約対応手当（¥/件）</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    {...form.register("bookingAllowance", { valueAsNumber: true })}
+                  />
+                </div>
+                <div className="grid gap-1.5">
+                  <Label>成果報酬（¥/件）</Label>
+                  <Input
+                    type="number"
+                    min={0}
+                    {...form.register("achievementBonus", { valueAsNumber: true })}
+                  />
+                  <p className="text-[10px] text-muted-foreground">
+                    イベント主催・大会開催の成功時に支払う特別報酬
+                  </p>
+                </div>
+              </div>
+
+              {/* 個別明細項目（保険・年金・源泉徴収など）*/}
+              <div className="space-y-2">
+                <div className="flex items-center justify-between">
+                  <Label className="text-xs">
+                    個別明細（保険・年金・源泉徴収など）
+                  </Label>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    onClick={addLineItem}
+                  >
+                    <PlusIcon className="w-3 h-3" />
+                    項目を追加
+                  </Button>
+                </div>
+                <p className="text-[10px] text-muted-foreground">
+                  人によって異なる保険・年金・源泉徴収などを手動で設定。
+                  正の数で加算、負の数で控除。社労士相談で項目を確定してください。
+                </p>
+                {lineItems.length === 0 ? (
+                  <div className="text-xs text-muted-foreground py-2 text-center border border-dashed rounded">
+                    明細項目はまだありません
+                  </div>
+                ) : (
+                  <div className="space-y-1.5">
+                    {lineItems.map((li) => (
+                      <div key={li.id} className="flex items-center gap-2">
+                        <Select
+                          value={li.category}
+                          onValueChange={(v) =>
+                            updateLineItem(li.id, {
+                              category: v as "allowance" | "deduction",
+                            })
+                          }
+                        >
+                          <SelectTrigger className="w-24 h-8 text-xs">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="allowance">手当</SelectItem>
+                            <SelectItem value="deduction">控除</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        <Input
+                          placeholder="項目名（例：源泉徴収、健康保険、交通費）"
+                          value={li.label}
+                          onChange={(e) =>
+                            updateLineItem(li.id, { label: e.target.value })
+                          }
+                          className="h-8 text-xs flex-1"
+                        />
+                        <Input
+                          type="number"
+                          placeholder="金額"
+                          value={li.amount}
+                          onChange={(e) =>
+                            updateLineItem(li.id, {
+                              amount: Number(e.target.value),
+                            })
+                          }
+                          className="h-8 text-xs w-28"
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => removeLineItem(li.id)}
+                        >
+                          <X className="w-3 h-3" />
+                        </Button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              {/* 計算プレビュー */}
+              {(() => {
+                const hr = form.watch("hourlyRate") ?? 0;
+                const sample = 160; // 月 160h 想定
+                const base = hr * sample;
+                const liSum = lineItems.reduce((s, li) => s + li.amount, 0);
+                return (
+                  <div className="text-xs bg-background rounded p-2.5 border">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">月 160h ベース基本給</span>
+                      <span>{formatYen(base)}</span>
+                    </div>
+                    {liSum !== 0 && (
+                      <div className="flex justify-between">
+                        <span className="text-muted-foreground">個別明細合計</span>
+                        <span className={liSum < 0 ? "text-destructive" : ""}>
+                          {liSum >= 0 ? "+" : ""}
+                          {formatYen(liSum)}
+                        </span>
+                      </div>
+                    )}
+                    <div className="flex justify-between font-semibold pt-1 border-t mt-1">
+                      <span>支給参考額</span>
+                      <span>{formatYen(base + liSum)}</span>
+                    </div>
+                    <p className="text-[10px] text-muted-foreground mt-1">
+                      ＊ 実際の支給は実勤務時間 + 各種手当 × 件数 + 成果報酬 で計算されます
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+
             <DialogFooter>
               <Button
                 type="button"

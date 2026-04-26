@@ -41,12 +41,12 @@ const WEEKDAYS = ["日", "月", "火", "水", "木", "金", "土"];
 
 const courtSchema = z.object({
   name: z.string().min(1, "コート名を入力してください"),
-  type: z.enum(["屋外ハード", "室内", "室内ハード", "クレー"]),
+  type: z.enum(["屋外", "屋内"]),
   hourlyPrice: z.number().min(500, "時間単価は ¥500 以上"),
   active: z.boolean(),
+  operationalStatus: z.enum(["active", "cleaning", "maintenance", "closed"]),
   image: z.string().url("URL 形式が不正").or(z.literal("")).optional(),
   description: z.string().max(500, "500 文字以内").optional(),
-  capacity: z.number().min(2).max(8).optional(),
   floor: z.string().max(20).optional(),
   courtCount: z.number().min(1).max(20).optional(),
   amenities: z.array(z.string()),
@@ -104,12 +104,12 @@ export default function CourtsPage() {
 
   const defaultForm: CourtForm = {
     name: "",
-    type: "屋外ハード",
+    type: "屋外",
     hourlyPrice: 2000,
     active: true,
+    operationalStatus: "active",
     image: "",
     description: "",
-    capacity: 4,
     floor: "",
     courtCount: 1,
     amenities: [],
@@ -130,12 +130,15 @@ export default function CourtsPage() {
     setEditing(c);
     form.reset({
       name: c.name,
-      type: c.type,
+      // 旧データの「屋外ハード/室内/室内ハード/クレー」は型変換
+      type: c.type === ("屋外" as CourtType) || (c.type as string)?.includes("屋外")
+        ? "屋外"
+        : "屋内",
       hourlyPrice: c.hourlyPrice,
       active: c.active,
+      operationalStatus: c.operationalStatus ?? (c.active ? "active" : "closed"),
       image: c.image ?? "",
       description: c.description ?? "",
-      capacity: c.capacity ?? 4,
       floor: c.floor ?? "",
       courtCount: c.courtCount ?? 1,
       amenities: c.amenities ?? [],
@@ -148,6 +151,7 @@ export default function CourtsPage() {
     if (editing) {
       update(editing.id, {
         ...data,
+        active: data.operationalStatus === "active",
         image: data.image || undefined,
         description: data.description || undefined,
         floor: data.floor || undefined,
@@ -158,6 +162,7 @@ export default function CourtsPage() {
         id: `c-${Date.now()}`,
         venueId: user?.venueId ?? "v1",
         ...data,
+        active: data.operationalStatus === "active",
         image: data.image || undefined,
         description: data.description || undefined,
         floor: data.floor || undefined,
@@ -293,7 +298,13 @@ export default function CourtsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between gap-2">
                       <div className="font-medium text-sm truncate">{c.name}</div>
-                      {!c.active && <Badge variant="muted">停止中</Badge>}
+                      {(() => {
+                        const st = c.operationalStatus ?? (c.active ? "active" : "closed");
+                        if (st === "active") return null;
+                        const label =
+                          st === "cleaning" ? "掃除中" : st === "maintenance" ? "メンテナンス中" : "停止中";
+                        return <Badge variant="warning">{label}</Badge>;
+                      })()}
                     </div>
                     {isLst && (
                       <div className="text-[10px] text-primary mt-0.5 truncate">
@@ -379,7 +390,13 @@ export default function CourtsPage() {
                   <div className="flex items-center gap-2 mb-1">
                     <span className="font-semibold">{activeCourt.name}</span>
                     <Badge variant="secondary">{activeCourt.type}</Badge>
-                    {!activeCourt.active && <Badge variant="muted">停止中</Badge>}
+                    {(() => {
+                      const st = activeCourt.operationalStatus ?? (activeCourt.active ? "active" : "closed");
+                      if (st === "active") return null;
+                      const label =
+                        st === "cleaning" ? "掃除中" : st === "maintenance" ? "メンテナンス中" : "停止中";
+                      return <Badge variant="warning">{label}</Badge>;
+                    })()}
                     <span className="ml-auto text-sm font-semibold">
                       {formatYen(activeCourt.hourlyPrice)}
                       <span className="text-xs text-muted-foreground ml-1">/h</span>
@@ -396,9 +413,6 @@ export default function CourtsPage() {
                     )}
                     {activeCourt.courtCount && (
                       <span>{activeCourt.courtCount} 面</span>
-                    )}
-                    {activeCourt.capacity && (
-                      <span>定員 {activeCourt.capacity} 名/面</span>
                     )}
                     {activeCourt.rating != null && activeCourt.rating > 0 && (
                       <span className="flex items-center gap-1">
@@ -542,12 +556,13 @@ export default function CourtsPage() {
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="屋外ハード">屋外ハード</SelectItem>
-                    <SelectItem value="室内">室内</SelectItem>
-                    <SelectItem value="室内ハード">室内ハード</SelectItem>
-                    <SelectItem value="クレー">クレー</SelectItem>
+                    <SelectItem value="屋外">屋外</SelectItem>
+                    <SelectItem value="屋内">屋内</SelectItem>
                   </SelectContent>
                 </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  パデル特化のため屋外・屋内のみ
+                </p>
               </div>
             </div>
 
@@ -566,13 +581,29 @@ export default function CourtsPage() {
                 )}
               </div>
               <div className="grid gap-1.5">
-                <Label>収容人数（1 面あたり）</Label>
-                <Input
-                  type="number"
-                  min={2}
-                  max={8}
-                  {...form.register("capacity", { valueAsNumber: true })}
-                />
+                <Label required>運営ステータス</Label>
+                <Select
+                  value={form.watch("operationalStatus")}
+                  onValueChange={(v) =>
+                    form.setValue(
+                      "operationalStatus",
+                      v as "active" | "cleaning" | "maintenance" | "closed"
+                    )
+                  }
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="active">稼働中（予約受付）</SelectItem>
+                    <SelectItem value="cleaning">掃除中（一時停止）</SelectItem>
+                    <SelectItem value="maintenance">メンテナンス中</SelectItem>
+                    <SelectItem value="closed">停止中</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  active 以外は予約受付不可
+                </p>
               </div>
             </div>
 
@@ -660,13 +691,7 @@ export default function CourtsPage() {
               </div>
             )}
 
-            <div className="flex items-center gap-3 pt-2 border-t">
-              <Switch
-                checked={form.watch("active")}
-                onCheckedChange={(v) => form.setValue("active", v)}
-              />
-              <Label>コートを有効化（無効にすると予約不可）</Label>
-            </div>
+            {/* 旧 active トグルは operationalStatus に統合 */}
             <DialogFooter>
               <Button
                 type="button"

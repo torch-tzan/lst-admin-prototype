@@ -110,7 +110,7 @@ export const VENUES: Venue[] = [
 // ─── 場地 ────────────────────────────────────────
 export const COURTS: Court[] = [
   {
-    id: "c1-a", venueId: "v1", name: "コートA（11F 屋上）", type: "屋外ハード",
+    id: "c1-a", venueId: "v1", name: "コートA（11F 屋上）", type: "屋外",
     hourlyPrice: 2000, active: true,
     floor: "11F", courtCount: 4,
     amenities: ["駐車場", "ナイター", "レンタル用具", "トイレ"],
@@ -119,7 +119,7 @@ export const COURTS: Court[] = [
     capacity: 4, rating: 4.5, reviewCount: 128,
   },
   {
-    id: "c1-b", venueId: "v1", name: "コートB（2F 室内）", type: "室内",
+    id: "c1-b", venueId: "v1", name: "コートB（2F 室内）", type: "屋内",
     hourlyPrice: 2500, active: true,
     floor: "2F", courtCount: 2,
     amenities: ["シャワー", "ロッカー", "空調", "レンタル用具", "更衣室"],
@@ -128,15 +128,15 @@ export const COURTS: Court[] = [
     capacity: 4, rating: 4.7, reviewCount: 84,
   },
   {
-    id: "c1-c", venueId: "v1", name: "コートC（B1F）", type: "屋外ハード",
-    hourlyPrice: 2000, active: false,
+    id: "c1-c", venueId: "v1", name: "コートC（B1F）", type: "屋外",
+    hourlyPrice: 2000, active: false, operationalStatus: "maintenance",
     floor: "B1F", courtCount: 2,
     amenities: ["駐車場"],
     description: "B1F 地下エリア 2 面。改装工事のため一時停止中。",
     capacity: 4,
   },
   {
-    id: "c2-a", venueId: "v2", name: "コートA（3F 室内）", type: "室内",
+    id: "c2-a", venueId: "v2", name: "コートA（3F 室内）", type: "屋内",
     hourlyPrice: 3500, active: true,
     floor: "3F", courtCount: 3,
     amenities: ["シャワー", "ロッカー", "空調", "カフェ", "観戦席", "Wi-Fi"],
@@ -145,7 +145,7 @@ export const COURTS: Court[] = [
     capacity: 4, rating: 4.8, reviewCount: 86,
   },
   {
-    id: "c2-b", venueId: "v2", name: "コートB（4F 室内）", type: "室内ハード",
+    id: "c2-b", venueId: "v2", name: "コートB（4F 室内）", type: "屋内",
     hourlyPrice: 3200, active: true,
     floor: "4F", courtCount: 2,
     amenities: ["シャワー", "ロッカー", "空調", "レンタル用具"],

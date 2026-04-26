@@ -51,7 +51,6 @@ export const NAV_ITEMS: (NavItem & { roles: Role[] })[] = [
   // ── お知らせ/イベント（両方、企業は自社スコープ）────
   { href: "/announcements", label: "お知らせ配信", icon: "Megaphone", section: "announce", roles: ["lst-admin", "venue-admin"] },
   { href: "/campaigns", label: "キャンペーン・イベント管理", icon: "Sparkles", section: "announce", roles: ["lst-admin", "venue-admin"] },
-  { href: "/coupons", label: "クーポン管理", icon: "Ticket", section: "announce", roles: ["lst-admin", "venue-admin"] },
 
   // ── システム ─────────────────────────────────
   { href: "/settings", label: "システム設定", icon: "Settings", section: "system", roles: ["lst-admin"] },
@@ -62,8 +61,8 @@ export const NAV_ITEMS: (NavItem & { roles: Role[] })[] = [
 
   // ── コーチング／プラットフォーム特化（LST のみ）────
   // 企業はコーチ・大会・会員ポイントに関与しないため表示なし
+  // ポイント管理は利用者 app 側機能のため後台では扱わない
   { href: "/coaches", label: "コーチ管理", icon: "UserCheck", section: "coaching", roles: ["lst-admin"] },
-  { href: "/points", label: "ポイント管理", icon: "Star", section: "coaching", roles: ["lst-admin"] },
 ];
 
 export function getNavFor(user: AdminUser | null): NavItem[] {

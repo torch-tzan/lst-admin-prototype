@@ -85,6 +85,8 @@ export function cleanupOldMockKeys() {
     "lst-mock-earnings-v1",
     "lst-mock-campaigns-v1",
     "lst-mock-courts-v1",
+    "lst-mock-courts-v2",
+    "lst-mock-staff-v1",
   ];
   legacy.forEach((k) => {
     try {
@@ -95,8 +97,8 @@ export function cleanupOldMockKeys() {
 
 export const MOCK_KEYS = {
   venues: "lst-mock-venues-v1",
-  // v2: floor / courtCount フィールド追加
-  courts: "lst-mock-courts-v2",
+  // v3: 種別を屋外/屋内のみに、operationalStatus 追加、capacity 廃止
+  courts: "lst-mock-courts-v3",
   equipment: "lst-mock-equipment-v1",
   bookings: "lst-mock-bookings-v1",
   reviews: "lst-mock-reviews-v1",
@@ -113,7 +115,8 @@ export const MOCK_KEYS = {
   coaches: "lst-mock-coaches-v2",
   messageThreads: "lst-mock-msg-threads-v1",
   videoReviews: "lst-mock-video-reviews-v1",
-  staff: "lst-mock-staff-v1",
+  // v2: 給与設定（時給・手当・成果報酬・個別明細）追加
+  staff: "lst-mock-staff-v2",
   shifts: "lst-mock-shifts-v1",
   invites: "lst-mock-invites-v1",
   // v2: app と構造を一致、報名・参加費・定員を削除

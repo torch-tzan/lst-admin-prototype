@@ -42,7 +42,11 @@ export interface Venue {
 }
 
 // ─── 場地 (Court) ────────────────────────────────
-export type CourtType = "屋外ハード" | "室内" | "室内ハード" | "クレー";
+// パデル特化のため、種別は屋外/屋内のみ（2026-04-22 客先 MTG 確認）
+export type CourtType = "屋外" | "屋内";
+
+/** 運営ステータス（active=稼働中／cleaning=掃除中／maintenance=メンテナンス中／closed=停止中）*/
+export type CourtOperationalStatus = "active" | "cleaning" | "maintenance" | "closed";
 
 export interface Court {
   id: string;
@@ -50,15 +54,16 @@ export interface Court {
   name: string; // コートA / コートB
   type: CourtType;
   hourlyPrice: number; // ¥
+  /** 後方互換用：true=active 相当 */
   active: boolean;
+  /** 運営ステータス（active 以外なら予約不可）*/
+  operationalStatus?: CourtOperationalStatus;
   /** 設備タグ（駐車場、シャワー、ロッカー、ナイター、空調、カフェ 等）*/
   amenities: string[];
   /** コート写真 URL */
   image?: string;
   /** コート紹介文 */
   description?: string;
-  /** 収容人数（1 面あたりの最大プレイヤー数）*/
-  capacity?: number;
   /** 所在階（例：11F、B1F、屋上）*/
   floor?: string;
   /** 同エリア内のコート面数（例：11F に 4 面ある場合は 4）*/
@@ -67,6 +72,11 @@ export interface Court {
   rating?: number;
   /** レビュー数 */
   reviewCount?: number;
+  /**
+   * @deprecated パデルはフレキシブル運用（4 人ベース、コーチング 10 人、レビュー 1 人）
+   * のため後台側では制限しない。残しているのは旧データ互換のみ。
+   */
+  capacity?: number;
 }
 
 /** コートのアメニティ選択肢（user app のサンプルから抽出）*/
@@ -610,6 +620,14 @@ export interface VideoReview {
 export type StaffRole = "owner" | "manager" | "staff" | "receptionist";
 export type StaffStatus = "active" | "inactive";
 
+/** 給与の手動明細項目（保険・年金・源泉徴収など、人によって異なる）*/
+export interface PayrollLineItem {
+  id: string;
+  label: string; // 例：源泉徴収、健康保険料、厚生年金、住民税、交通費
+  amount: number; // 正＝加算、負＝控除
+  category: "allowance" | "deduction";
+}
+
 export interface Staff {
   id: string;
   venueId: string;
@@ -620,6 +638,15 @@ export interface Staff {
   status: StaffStatus;
   hiredAt: string;
   note?: string;
+  /** 基本時給 */
+  hourlyRate?: number;
+  /** 手当単価（CSV MTG 2026-04-22 確認）*/
+  lessonAllowance?: number; // レッスン 1 件あたり手当
+  bookingAllowance?: number; // 予約対応 1 件あたり手当
+  /** 成果報酬（イベント主催・大会開催成功時に支払う特別報酬の単価）*/
+  achievementBonus?: number;
+  /** 個別追加項目（保険・年金・源泉徴収など、社労士相談で人ごとに設定）*/
+  customLineItems?: PayrollLineItem[];
 }
 
 // ─── シフト ──────────────────────────────────────
